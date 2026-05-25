@@ -1,45 +1,131 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PawPrint } from "lucide-react"; // Biểu tượng bàn chân chó mèo chuẩn
+import { Menu, PawPrint, User, X } from "lucide-react";
+import { Link, NavLink } from "react-router-dom";
+import { NotificationBell } from "@/components/public/NotificationBell";
+import { CartButton } from "@/components/public/CartButton";
+import { usePublicAuth } from "@/contexts/PublicAuthContext";
+import { cn } from "@/lib/utils";
+
+export const navLinks = [
+  { to: "/", label: "Home" },
+  { to: "/adopt", label: "Adopt" },
+  { to: "/rescue", label: "Rescue" },
+  { to: "/shop", label: "Shop" },
+  { to: "/donate", label: "Donate" },
+  { to: "/blog", label: "Learn" },
+  { to: "/contact", label: "Contact" },
+];
 
 export const Navbar = () => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = usePublicAuth();
+
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b py-4 shadow-sm">
-      <div className="container mx-auto px-4 flex justify-between items-center max-w-6xl">
-        
-        {/* Logo với biểu tượng bàn chân thú cưng */}
-        <div className="flex items-center gap-2 group cursor-pointer">
-          <div className="w-10 h-10 bg-[#2c5f51] rounded-full flex items-center justify-center shadow-md transition-all group-hover:rotate-12 group-hover:scale-110">
-            {/* Icon bàn chân màu cam, có đổ màu đặc (fill) để nhìn rõ nét */}
-            <PawPrint size={26} className="text-[#f6931d] fill-[#f6931d]" />
+    <header className="sticky top-0 z-50 border-b bg-white/95 py-3 shadow-sm backdrop-blur-sm sm:py-4">
+      <div className="public-container flex items-center justify-between gap-3">
+        <Link to="/" className="group flex min-w-0 items-center gap-2" onClick={() => setMobileOpen(false)}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2c5f51] shadow-md transition-all group-hover:scale-110 group-hover:rotate-12 sm:h-10 sm:w-10">
+            <PawPrint size={22} className="fill-[#f6931d] text-[#f6931d] sm:h-[26px] sm:w-[26px]" />
           </div>
-          <div className="flex flex-col -space-y-1">
-            <span className="text-2xl font-black text-[#2c5f51] tracking-tighter">
+          <div className="flex min-w-0 flex-col -space-y-1">
+            <span className="truncate text-lg font-black tracking-tighter text-[#2c5f51] sm:text-2xl">
               PAWSHOPENET
             </span>
-            <span className="text-[10px] font-bold text-[#f6931d] uppercase tracking-[0.2em] pl-1">
+            <span className="hidden pl-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#f6931d] sm:block">
               Rescue & Adopt
             </span>
           </div>
-        </div>
+        </Link>
 
-        {/* Navigation Links */}
-        <nav className="hidden md:flex gap-8 font-bold text-sm text-gray-600 uppercase">
-          <a href="/" className="hover:text-[#f6931d] transition-colors">Trang chủ</a>
-          <a href="/adopt" className="hover:text-[#f6931d] transition-colors">Nhận nuôi</a>
-          <a href="/rescue" className="hover:text-[#f6931d] transition-colors">Cứu hộ</a>
-          <a href="/blog" className="hover:text-[#f6931d] transition-colors">Kiến thức</a>
-          <a href="/contact" className="hover:text-[#f6931d] transition-colors">Liên hệ</a>
+        <nav className="hidden items-center gap-4 font-bold uppercase text-gray-600 lg:flex xl:gap-6 xl:text-sm">
+          {navLinks.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              className={({ isActive }) =>
+                cn(
+                  "whitespace-nowrap text-xs transition-colors hover:text-[#f6931d] xl:text-sm",
+                  isActive && "text-[#f6931d]"
+                )
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
         </nav>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button 
-            className="rounded-full bg-[#f6931d] hover:bg-orange-600 text-white font-bold px-8 shadow-lg transition-all active:scale-95"
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <CartButton />
+          <NotificationBell />
+          {user ? (
+            <Button
+              asChild
+              variant="outline"
+              className="hidden rounded-full border-[#2c5f51]/20 px-4 font-bold text-[#2c5f51] sm:inline-flex lg:px-6"
+            >
+              <Link to="/account">
+                <User size={16} className="mr-2" />
+                Account
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              asChild
+              className="hidden rounded-full bg-[#f6931d] px-6 font-bold text-white shadow-lg transition-all hover:bg-orange-600 active:scale-95 sm:inline-flex lg:px-8"
+            >
+              <Link to="/login">Sign in</Link>
+            </Button>
+          )}
+          <button
+            type="button"
+            className="public-touch-target rounded-lg text-[#2c5f51] hover:bg-gray-100 lg:hidden"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMobileOpen((v) => !v)}
           >
-            Đăng nhập
-          </Button>
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
+
+      {mobileOpen ? (
+        <div className="space-y-1 border-t bg-white px-4 py-4 lg:hidden">
+          {navLinks.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  "block rounded-lg px-4 py-3 text-sm font-bold uppercase text-gray-600 hover:bg-[#fdfaf5] hover:text-[#f6931d]",
+                  isActive && "bg-[#fdfaf5] text-[#f6931d]"
+                )
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+          {user ? (
+            <Link
+              to="/account"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-lg px-4 py-3 text-sm font-bold uppercase text-[#2c5f51]"
+            >
+              My account
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-lg px-4 py-3 text-sm font-bold uppercase text-[#f6931d]"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
+      ) : null}
     </header>
   );
 };
