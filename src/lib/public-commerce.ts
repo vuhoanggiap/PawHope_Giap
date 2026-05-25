@@ -1,7 +1,6 @@
 import {
   demoUserOrders,
   mockCampaigns,
-  mockProducts,
   type DonationCampaign,
   type PublicCartLine,
   type PublicItemDonation,
@@ -9,6 +8,7 @@ import {
   type PublicOrder,
   type PublicProduct,
 } from "@/data/public-mock";
+import { getActiveProducts, getProductById } from "@/lib/admin-store";
 
 const CART_KEY = "pawshope_public_cart";
 const ORDERS_KEY = "pawshope_public_orders";
@@ -33,11 +33,11 @@ function writeJson<T>(key: string, value: T) {
 }
 
 export function getProducts(): PublicProduct[] {
-  return mockProducts.filter((p) => p.is_active);
+  return getActiveProducts();
 }
 
 export function getProduct(productId: number): PublicProduct | undefined {
-  return getProducts().find((p) => p.product_id === productId);
+  return getProductById(productId);
 }
 
 export function getCampaigns(): DonationCampaign[] {

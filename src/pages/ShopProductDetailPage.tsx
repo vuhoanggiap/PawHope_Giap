@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
+import { AddToCartToast } from "@/components/public/AddToCartToast";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
 import { addToCart, getProduct } from "@/lib/public-commerce";
@@ -14,6 +15,14 @@ export function ShopProductDetailPage() {
   const product = getProduct(Number(id));
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState<{ open: boolean; variant: "success" | "error" }>({
+    open: false,
+    variant: "success",
+  });
+
+  const closeToast = useCallback(() => {
+    setToast((current) => ({ ...current, open: false }));
+  }, []);
 
   if (!product) {
     return (
@@ -34,8 +43,11 @@ export function ShopProductDetailPage() {
     if (addToCart(user.userId, product.product_id, qty)) {
       refresh();
       setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
+      setToast({ open: true, variant: "success" });
+      window.setTimeout(() => setAdded(false), 2000);
+      return;
     }
+    setToast({ open: true, variant: "error" });
   };
 
   return (
@@ -46,7 +58,7 @@ export function ShopProductDetailPage() {
         <div className="public-container">
           <Link
             to="/shop"
-            className="inline-flex items-center gap-2 text-sm font-bold text-[#f6931d] mb-8 hover:underline"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#f6931d] hover:underline"
           >
             <ArrowLeft size={16} /> Back to shop
           </Link>
@@ -55,11 +67,11 @@ export function ShopProductDetailPage() {
             <img
               src={product.image_url}
               alt={product.product_name}
-              className="w-full rounded-3xl shadow-xl object-cover max-h-[480px]"
+              className="max-h-[480px] w-full rounded-3xl object-cover shadow-xl"
             />
             <div className="space-y-6">
               <p className="text-2xl font-bold text-[#2c5f51] sm:text-3xl">{formatVnd(product.price)}</p>
-              <p className="text-gray-600 leading-relaxed">{product.description}</p>
+              <p className="leading-relaxed text-gray-600">{product.description}</p>
               <p className="text-sm text-gray-500">{product.stock_quantity} in stock</p>
 
               <div className="flex items-center gap-4">
@@ -79,7 +91,7 @@ export function ShopProductDetailPage() {
 
               <Button
                 onClick={handleAdd}
-                className="w-full sm:w-auto rounded-full bg-[#f6931d] hover:bg-orange-600 font-bold h-12 px-8"
+                className="h-12 w-full rounded-full bg-[#f6931d] px-8 font-bold hover:bg-orange-600 sm:w-auto"
               >
                 {added ? (
                   <>
@@ -99,6 +111,14 @@ export function ShopProductDetailPage() {
           </div>
         </div>
       </section>
+
+      <AddToCartToast
+        open={toast.open}
+        variant={toast.variant}
+        productName={product.product_name}
+        quantity={qty}
+        onClose={closeToast}
+      />
     </>
   );
 }

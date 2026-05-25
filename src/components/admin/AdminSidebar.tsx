@@ -6,6 +6,7 @@ import {
   HeartHandshake,
   Wallet,
   ShoppingBag,
+  Package,
   Receipt,
   Users,
   UserPlus,
@@ -13,6 +14,9 @@ import {
   PawPrint,
   LogOut,
   ExternalLink,
+  Settings,
+  Mail,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -33,12 +37,16 @@ const allLinks: NavItem[] = [
   { to: "/admin/pets", label: "Pets", icon: Dog },
   { to: "/admin/kennels", label: "Kennels", icon: Warehouse },
   { to: "/admin/adoptions", label: "Adoptions", icon: HeartHandshake },
+  { to: "/admin/products", label: "Products", icon: Package, onlyRoles: ["ADMIN"] },
   { to: "/admin/donations", label: "Donations", icon: Wallet },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, onlyRoles: ["ADMIN"] },
   { to: "/admin/expenses", label: "Expenses", icon: Receipt, onlyRoles: ["ADMIN"] },
   { to: "/admin/users", label: "Users", icon: Users, onlyRoles: ["ADMIN"] },
   { to: "/admin/volunteers", label: "Volunteers", icon: UserPlus, onlyRoles: ["ADMIN"] },
+  { to: "/admin/volunteer-schedule", label: "Schedule", icon: CalendarDays, onlyRoles: ["ADMIN"] },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
+  { to: "/admin/settings", label: "Settings", icon: Settings, onlyRoles: ["ADMIN"] },
+  { to: "/admin/email-logs", label: "Email logs", icon: Mail, onlyRoles: ["ADMIN"] },
 ];
 
 function linksForRole(role?: string) {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -131,13 +132,13 @@ export function AdminVolunteersPage() {
                 )}
               </AdminPanel>
 
-              <AdminPanel title="Volunteer schedule (coming soon)">
-                <p className="text-sm text-slate-500">
-                  Week registration, shift picker, and approval will live here — tables:{" "}
-                  <code className="text-slate-400">volunteer_schedule_windows</code>,{" "}
-                  <code className="text-slate-400">volunteer_schedule_weeks</code>,{" "}
-                  <code className="text-slate-400">volunteer_schedules</code>.
+              <AdminPanel title="Volunteer schedule">
+                <p className="text-sm text-slate-400 mb-3">
+                  Review shift sign-ups, registration windows, and approval status.
                 </p>
+                <Link to="/admin/volunteer-schedule" className="admin-btn-secondary inline-flex gap-2">
+                  Open schedule manager →
+                </Link>
               </AdminPanel>
             </>
           )}

@@ -5,6 +5,8 @@ import {
   Dog,
   HeartHandshake,
   LifeBuoy,
+  Package,
+  ShoppingBag,
   Wallet,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -50,6 +52,22 @@ export function AdminDashboardPage() {
       tint: "text-amber-400 bg-amber-400/15 ring-amber-400/20",
       to: "/admin/donations",
     },
+    {
+      label: "Shop orders",
+      value: s.orders.pending,
+      sub: `${s.orders.completed} completed`,
+      icon: ShoppingBag,
+      tint: "text-orange-400 bg-orange-400/15 ring-orange-400/20",
+      to: "/admin/orders",
+    },
+    {
+      label: "Active products",
+      value: s.products.active,
+      sub: `${s.products.lowStock} low stock`,
+      icon: Package,
+      tint: "text-teal-400 bg-teal-400/15 ring-teal-400/20",
+      to: "/admin/products",
+    },
   ];
 
   const pipeline = [
@@ -75,7 +93,7 @@ export function AdminDashboardPage() {
         </p>
       ) : null}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {statCards.map(({ label, value, sub, icon: Icon, tint, to }) => (
           <Link key={to} to={to} className="group block h-full">
             <div className="admin-stat-card h-full p-5">
@@ -133,7 +151,10 @@ export function AdminDashboardPage() {
             {[
               { to: "/admin/rescue", label: "Review rescue reports" },
               { to: "/admin/adoptions", label: "Process adoption applications" },
+              { to: "/admin/products", label: "Manage shop products" },
               { to: "/admin/volunteers", label: "Volunteer applications" },
+              { to: "/admin/volunteer-schedule", label: "Volunteer week schedule" },
+              { to: "/admin/settings", label: "Organization & guidelines" },
               { to: "/admin/notifications", label: `${s.notifications.unread} unread notifications` },
             ].map(({ to, label }) => (
               <Link key={to} to={to} className="admin-quick-action group">

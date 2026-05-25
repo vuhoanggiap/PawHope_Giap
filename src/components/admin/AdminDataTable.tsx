@@ -1,5 +1,11 @@
 import { formatCell } from "@/lib/adminFormat";
 import { cn } from "@/lib/utils";
+import { isValidElement, type ReactNode } from "react";
+
+function renderCell(value: unknown): ReactNode {
+  if (isValidElement(value)) return value;
+  return formatCell(value);
+}
 
 interface AdminDataTableProps {
   rows: Record<string, unknown>[];
@@ -40,7 +46,7 @@ export function AdminDataTable({ rows, columns, onRowClick }: AdminDataTableProp
             >
               {cols.map((col) => (
                 <td key={col.key} className="max-w-[260px] truncate px-4 py-3">
-                  {formatCell(row[col.key])}
+                  {renderCell(row[col.key])}
                 </td>
               ))}
             </tr>

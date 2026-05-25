@@ -42,6 +42,11 @@ import { AdminAdoptionsPage } from "./pages/admin/AdminAdoptionsPage";
 import { AdminDonationsPage } from "./pages/admin/AdminDonationsPage";
 import { AdminOrdersPage } from "./pages/admin/AdminOrdersPage";
 import { AdminExpensesPage } from "./pages/admin/AdminExpensesPage";
+import { AdminProductsPage } from "./pages/admin/AdminProductsPage";
+import { AdminProductDetailPage } from "./pages/admin/AdminProductDetailPage";
+import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
+import { AdminEmailLogsPage } from "./pages/admin/AdminEmailLogsPage";
+import { AdminVolunteerSchedulePage } from "./pages/admin/AdminVolunteerSchedulePage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminVolunteersPage } from "./pages/admin/AdminVolunteersPage";
 import { AdminNotificationsPage } from "./pages/admin/AdminNotificationsPage";
@@ -99,11 +104,16 @@ function App() {
               <Route path="donations" element={<AdminDonationsPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route element={<RequireRole roles={["ADMIN"]} />}>
+                <Route path="products" element={<AdminProductsPage />} />
+                <Route path="products/:id" element={<AdminProductDetailPage />} />
                 <Route path="orders" element={<AdminOrdersPage />} />
                 <Route path="orders/:id" element={<AdminOrderDetailPage />} />
                 <Route path="expenses" element={<AdminExpensesPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="volunteers" element={<AdminVolunteersPage />} />
+                <Route path="volunteer-schedule" element={<AdminVolunteerSchedulePage />} />
+                <Route path="settings" element={<AdminSettingsPage />} />
+                <Route path="email-logs" element={<AdminEmailLogsPage />} />
               </Route>
             </Route>
           </Route>
