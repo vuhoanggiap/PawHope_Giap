@@ -4,6 +4,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { USE_MOCK } from "@/lib/api-client";
 import { PawPrint } from "lucide-react";
 
 export function LoginPage() {
@@ -79,8 +80,17 @@ export function LoginPage() {
               <Button type="submit" className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11">
                 Sign in
               </Button>
-              <p className="text-xs text-gray-500 text-center">
-                Demo: <code className="text-gray-600">user1 / user123</code>
+              <p className="text-xs text-gray-500 text-center leading-relaxed">
+                {USE_MOCK ? (
+                  <>
+                    Demo (mock): <code className="text-gray-600">user1 / user123</code>
+                  </>
+                ) : (
+                  <>
+                    Use an account you registered on this site, or demo{" "}
+                    <code className="text-gray-600">user1 / user123</code> if still enabled.
+                  </>
+                )}
               </p>
               <p className="text-center text-sm text-gray-500">
                 No account?{" "}

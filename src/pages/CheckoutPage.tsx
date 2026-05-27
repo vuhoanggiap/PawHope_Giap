@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
@@ -9,28 +9,44 @@ import {
   checkout,
   getCartDetails,
   getCartSubtotal,
+  loadUserCart,
   SHIPPING_FEE,
 } from "@/lib/public-commerce";
+import { USE_MOCK } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatVnd";
 import { CheckCircle2 } from "lucide-react";
 
 export function CheckoutPage() {
   const { user, refresh } = usePublicAuth();
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [ready, setReady] = useState(USE_MOCK);
+
+  useEffect(() => {
+    if (!user || USE_MOCK) return;
+    void loadUserCart(user.userId).then(() => setReady(true));
+  }, [user]);
 
   if (!user) return null;
 
   const lines = getCartDetails(user.userId);
   const subtotal = getCartSubtotal(user.userId);
 
+  if (!ready && !USE_MOCK) {
+    return (
+      <div className="public-container py-16 text-center">
+        <p className="soft-subtext">Loading checkout…</p>
+      </div>
+    );
+  }
+
   if (lines.length === 0 && !orderId) {
     return <Navigate to="/cart" replace />;
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const order = checkout(user.userId, {
+    const order = await checkout(user.userId, {
       receiver_name: String(fd.get("name") || ""),
       receiver_phone: String(fd.get("phone") || ""),
       shipping_address: String(fd.get("address") || ""),

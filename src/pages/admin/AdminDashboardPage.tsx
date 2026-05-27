@@ -1,74 +1,30 @@
 import { Link, useLocation } from "react-router-dom";
-import {
-  ArrowRight,
-  Bell,
-  Dog,
-  HeartHandshake,
-  LifeBuoy,
-  Package,
-  ShoppingBag,
-  Wallet,
-} from "lucide-react";
+import { ArrowRight, Bell } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { adminDashboardStats } from "@/data/admin-mock";
+import { adminDashboardStats as defaultStats } from "@/data/admin-mock";
+import { USE_MOCK } from "@/lib/api-client";
+import {
+  getDashboardQuickActions,
+  getDashboardStatCards,
+  getStaffUser,
+} from "@/lib/admin/admin-role";
+import { loadDashboardStats } from "@/lib/admin/admin-data";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 export function AdminDashboardPage() {
   const location = useLocation();
   const forbidden = (location.state as { forbidden?: boolean } | null)?.forbidden;
+  const staff = getStaffUser();
+  const role = staff?.role;
 
-  const s = adminDashboardStats;
+  const [s, setS] = useState(defaultStats);
+  useEffect(() => {
+    void loadDashboardStats().then(setS);
+  }, []);
 
-  const statCards = [
-    {
-      label: "Rescue pending",
-      value: s.rescue.pending,
-      sub: `${s.rescue.inProgress} in progress`,
-      icon: LifeBuoy,
-      tint: "text-sky-400 bg-sky-400/15 ring-sky-400/20",
-      to: "/admin/rescue",
-    },
-    {
-      label: "Pets available",
-      value: s.pets.available,
-      sub: `${s.pets.inCare} in care total`,
-      icon: Dog,
-      tint: "text-emerald-400 bg-emerald-400/15 ring-emerald-400/20",
-      to: "/admin/pets",
-    },
-    {
-      label: "Adoptions pending",
-      value: s.adoptions.pending,
-      sub: `${s.adoptions.inReview} in review`,
-      icon: HeartHandshake,
-      tint: "text-violet-400 bg-violet-400/15 ring-violet-400/20",
-      to: "/admin/adoptions",
-    },
-    {
-      label: "Donations (VND)",
-      value: (s.donations.totalVnd / 1_000_000).toFixed(1) + "M",
-      sub: `${s.donations.count} transactions`,
-      icon: Wallet,
-      tint: "text-amber-400 bg-amber-400/15 ring-amber-400/20",
-      to: "/admin/donations",
-    },
-    {
-      label: "Shop orders",
-      value: s.orders.pending,
-      sub: `${s.orders.completed} completed`,
-      icon: ShoppingBag,
-      tint: "text-orange-400 bg-orange-400/15 ring-orange-400/20",
-      to: "/admin/orders",
-    },
-    {
-      label: "Active products",
-      value: s.products.active,
-      sub: `${s.products.lowStock} low stock`,
-      icon: Package,
-      tint: "text-teal-400 bg-teal-400/15 ring-teal-400/20",
-      to: "/admin/products",
-    },
-  ];
+  const statCards = getDashboardStatCards(s, role);
+  const quickActions = getDashboardQuickActions(s.notifications.unread, role);
 
   const pipeline = [
     { label: "Pending", val: s.rescue.pending, color: "bg-amber-400", text: "text-amber-400" },
@@ -83,8 +39,16 @@ export function AdminDashboardPage() {
     <div>
       <AdminPageHeader
         title="Dashboard"
-        description="Overview of sanctuary operations. Data is mock preview until team API is connected."
-        badge="UI preview"
+        description={
+          role === "VOLUNTEER"
+            ? USE_MOCK
+              ? "Volunteer overview (mock mode)."
+              : "Volunteer overview from API."
+            : USE_MOCK
+              ? "Overview with sample data (mock mode)."
+              : "Live overview from Spring Boot API."
+        }
+        badge={USE_MOCK ? "Mock" : "Live API"}
       />
 
       {forbidden ? (
@@ -148,15 +112,7 @@ export function AdminDashboardPage() {
             <Bell className="text-slate-500" size={18} />
           </div>
           <div className="space-y-1 p-3">
-            {[
-              { to: "/admin/rescue", label: "Review rescue reports" },
-              { to: "/admin/adoptions", label: "Process adoption applications" },
-              { to: "/admin/products", label: "Manage shop products" },
-              { to: "/admin/volunteers", label: "Volunteer applications" },
-              { to: "/admin/volunteer-schedule", label: "Volunteer week schedule" },
-              { to: "/admin/settings", label: "Organization & guidelines" },
-              { to: "/admin/notifications", label: `${s.notifications.unread} unread notifications` },
-            ].map(({ to, label }) => (
+            {quickActions.map(({ to, label }) => (
               <Link key={to} to={to} className="admin-quick-action group">
                 {label}
                 <ArrowRight

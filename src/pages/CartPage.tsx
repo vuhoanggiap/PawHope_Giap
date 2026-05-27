@@ -2,22 +2,19 @@ import { Link } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
-import {
-  getCartDetails,
-  getCartSubtotal,
-  removeFromCart,
-  SHIPPING_FEE,
-  updateCartQuantity,
-} from "@/lib/public-commerce";
+import { removeFromCart, SHIPPING_FEE, updateCartQuantity } from "@/lib/public-commerce";
+import { useCart } from "@/hooks/useCart";
 import { formatVnd } from "@/lib/formatVnd";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 export function CartPage() {
   const { user, refresh } = usePublicAuth();
+  const { lines, subtotal, loading, reload } = useCart(user?.userId);
   if (!user) return null;
 
-  const lines = getCartDetails(user.userId);
-  const subtotal = getCartSubtotal(user.userId);
+  const onCartChange = () => {
+    void reload().then(() => refresh());
+  };
 
   return (
     <>
@@ -29,7 +26,9 @@ export function CartPage() {
 
       <section className="public-section soft-section-warm min-h-[50vh]">
         <div className="public-container-narrow">
-          {lines.length === 0 ? (
+          {loading ? (
+            <div className="soft-card p-12 text-center soft-subtext">Loading cart…</div>
+          ) : lines.length === 0 ? (
             <div className="soft-card p-12 text-center space-y-4">
               <p className="soft-subtext">Your cart is empty.</p>
               <Button asChild className="rounded-full bg-[#2c5f51]">
@@ -59,8 +58,9 @@ export function CartPage() {
                           type="button"
                           className="p-1.5 rounded-lg border hover:bg-white"
                           onClick={() => {
-                            updateCartQuantity(user.userId, line.product_id, line.quantity - 1);
-                            refresh();
+                            void updateCartQuantity(user.userId, line.product_id, line.quantity - 1).then(
+                              onCartChange
+                            );
                           }}
                         >
                           <Minus size={14} />
@@ -70,8 +70,9 @@ export function CartPage() {
                           type="button"
                           className="p-1.5 rounded-lg border hover:bg-white"
                           onClick={() => {
-                            updateCartQuantity(user.userId, line.product_id, line.quantity + 1);
-                            refresh();
+                            void updateCartQuantity(user.userId, line.product_id, line.quantity + 1).then(
+                              onCartChange
+                            );
                           }}
                         >
                           <Plus size={14} />
@@ -80,8 +81,7 @@ export function CartPage() {
                           type="button"
                           className="ml-auto p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
                           onClick={() => {
-                            removeFromCart(user.userId, line.product_id);
-                            refresh();
+                            void removeFromCart(user.userId, line.product_id).then(onCartChange);
                           }}
                           aria-label="Remove"
                         >

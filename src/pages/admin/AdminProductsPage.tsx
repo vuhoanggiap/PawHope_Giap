@@ -1,19 +1,26 @@
 import { Link } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { getAllProducts, toggleProductActive } from "@/lib/admin-store";
+import {
+  getAllProducts,
+  loadAllProducts,
+  toggleProductActiveInStore,
+} from "@/lib/admin-store";
 import { formatVnd } from "@/lib/formatVnd";
 import { ChevronRight, Package } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function AdminProductsPage() {
   const [products, setProducts] = useState(() => getAllProducts());
 
-  const refresh = () => setProducts(getAllProducts());
+  useEffect(() => {
+    void loadAllProducts().then(setProducts);
+  }, []);
+
+  const refresh = () => void loadAllProducts().then(setProducts);
 
   const handleToggle = (productId: number) => {
-    toggleProductActive(productId);
-    refresh();
+    void toggleProductActiveInStore(productId).then(refresh);
   };
 
   const activeCount = products.filter((p) => p.is_active).length;

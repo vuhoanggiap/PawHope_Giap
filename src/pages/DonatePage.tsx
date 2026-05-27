@@ -10,7 +10,8 @@ import {
   formatPublicEnum,
   itemDonationCategories,
 } from "@/data/public-mock";
-import { donateItem, donateMoney, getCampaigns } from "@/lib/public-commerce";
+import { donateItem, donateMoney } from "@/lib/public-commerce";
+import { useDonateCampaigns } from "@/hooks/useDonateCampaigns";
 import { formatVnd } from "@/lib/formatVnd";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Gift, Heart, Package } from "lucide-react";
@@ -26,13 +27,13 @@ export function DonatePage() {
   const [moneyDone, setMoneyDone] = useState(false);
   const [itemDone, setItemDone] = useState(false);
 
-  const campaigns = getCampaigns();
+  const { campaigns } = useDonateCampaigns();
 
-  const handleMoney = (e: FormEvent<HTMLFormElement>) => {
+  const handleMoney = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const finalAmount = customAmount ? Number(customAmount) : amount;
-    donateMoney({
+    await donateMoney({
       user_id: user?.userId,
       campaign_id: selectedCampaign,
       donor_name: String(fd.get("donorName") || "Guest"),
@@ -41,10 +42,10 @@ export function DonatePage() {
     setMoneyDone(true);
   };
 
-  const handleItem = (e: FormEvent<HTMLFormElement>) => {
+  const handleItem = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    donateItem({
+    await donateItem({
       user_id: user?.userId,
       donor_name: String(fd.get("donorName") || ""),
       item_name: String(fd.get("itemName") || ""),

@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
-import { getProducts } from "@/lib/public-commerce";
+import { useProductCatalog } from "@/hooks/useProductCatalog";
 import { formatVnd } from "@/lib/formatVnd";
 import { ShoppingBag } from "lucide-react";
 
 export function ShopPage() {
-  const products = getProducts();
+  const { products, loading, error } = useProductCatalog();
 
   return (
     <>
@@ -19,7 +19,12 @@ export function ShopPage() {
         <div className="public-container">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <p className="soft-subtext text-sm">
-              {products.length} items · Proceeds go to PawsHopeNet programs
+              {loading
+                ? "Loading products…"
+                : error
+                  ? `Could not reach API — showing local catalog. (${error})`
+                  : `${products.length} items`}{" "}
+              · Proceeds go to PawsHopeNet programs
             </p>
             <Link to="/donate" className="text-sm font-medium text-[#f6931d] hover:underline">
               Prefer to donate directly? →

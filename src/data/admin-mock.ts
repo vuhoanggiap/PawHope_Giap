@@ -736,6 +736,17 @@ export const mockScheduleWindows = [
   },
 ];
 
+export const mockVolunteerWeeks = [
+  {
+    week_id: 1,
+    window_id: 1,
+    user_id: 2,
+    status: "APPROVED",
+    week_start: "2026-05-19",
+    week_end: "2026-05-25",
+  },
+];
+
 export const mockVolunteerSchedules = [
   {
     schedule_id: 1,

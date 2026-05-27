@@ -17,6 +17,7 @@ import {
   Settings,
   Mail,
   CalendarDays,
+  CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -38,7 +39,8 @@ const allLinks: NavItem[] = [
   { to: "/admin/kennels", label: "Kennels", icon: Warehouse },
   { to: "/admin/adoptions", label: "Adoptions", icon: HeartHandshake },
   { to: "/admin/products", label: "Products", icon: Package, onlyRoles: ["ADMIN"] },
-  { to: "/admin/donations", label: "Donations", icon: Wallet },
+  { to: "/admin/donations", label: "Donations", icon: Wallet, onlyRoles: ["ADMIN"] },
+  { to: "/admin/my-schedule", label: "My schedule", icon: CalendarCheck, onlyRoles: ["VOLUNTEER"] },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, onlyRoles: ["ADMIN"] },
   { to: "/admin/expenses", label: "Expenses", icon: Receipt, onlyRoles: ["ADMIN"] },
   { to: "/admin/users", label: "Users", icon: Users, onlyRoles: ["ADMIN"] },

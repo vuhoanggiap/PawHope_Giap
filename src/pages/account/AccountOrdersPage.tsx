@@ -1,15 +1,22 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { formatPublicEnum } from "@/data/public-mock";
-import { getUserOrders } from "@/lib/public-commerce";
+import type { PublicOrder } from "@/data/public-mock";
+import { loadUserOrders } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
 import { ChevronRight } from "lucide-react";
 
 export function AccountOrdersPage() {
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [orders, setOrders] = useState<PublicOrder[]>([]);
 
-  const orders = getUserOrders(user.userId);
+  useEffect(() => {
+    if (!user) return;
+    void loadUserOrders(user.userId).then(setOrders);
+  }, [user]);
+
+  if (!user) return null;
 
   return (
     <div className="soft-card p-6 md:p-8">

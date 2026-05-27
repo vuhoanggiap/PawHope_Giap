@@ -4,7 +4,8 @@ import { PageHero } from "@/components/layout/PageHero";
 import { AddToCartToast } from "@/components/public/AddToCartToast";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
-import { addToCart, getProduct } from "@/lib/public-commerce";
+import { useProductDetail } from "@/hooks/useProductCatalog";
+import { addToCart } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
 import { ArrowLeft, Check, ShoppingCart } from "lucide-react";
 
@@ -12,7 +13,8 @@ export function ShopProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, refresh } = usePublicAuth();
-  const product = getProduct(Number(id));
+  const productId = Number(id);
+  const { product, loading, error } = useProductDetail(productId);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [toast, setToast] = useState<{ open: boolean; variant: "success" | "error" }>({
@@ -24,10 +26,19 @@ export function ShopProductDetailPage() {
     setToast((current) => ({ ...current, open: false }));
   }, []);
 
+  if (loading) {
+    return (
+      <div className="public-container py-16 text-center sm:py-24">
+        <p className="soft-subtext">Loading product…</p>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="public-container py-16 text-center sm:py-24">
         <h1 className="text-2xl font-bold text-[#2c5f51]">Product not found</h1>
+        {error ? <p className="mt-2 text-sm soft-subtext">{error}</p> : null}
         <Button asChild className="mt-6 bg-[#f6931d]">
           <Link to="/shop">Back to shop</Link>
         </Button>
@@ -35,12 +46,12 @@ export function ShopProductDetailPage() {
     );
   }
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!user) {
       navigate("/login", { state: { from: `/shop/${product.product_id}` } });
       return;
     }
-    if (addToCart(user.userId, product.product_id, qty)) {
+    if (await addToCart(user.userId, product.product_id, qty)) {
       refresh();
       setAdded(true);
       setToast({ open: true, variant: "success" });

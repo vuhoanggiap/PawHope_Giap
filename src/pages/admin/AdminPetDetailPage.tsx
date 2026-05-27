@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
@@ -11,15 +11,56 @@ import {
   mockPetStatusLogs,
   mockRescueReports,
 } from "@/data/admin-mock";
+import {
+  loadAdminPets,
+  loadKennels,
+  loadPetMedicalRecords,
+  loadPetStatusLogs,
+  loadRescueReports,
+  type AdminPetRow,
+  type AdminRescueRow,
+} from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 import { ArrowLeft } from "lucide-react";
 
 export function AdminPetDetailPage() {
   const { id } = useParams();
   const petId = Number(id);
-  const initial = mockAdminPets.find((p) => p.pet_id === petId);
-  const [pet, setPet] = useState(initial);
+  const [pet, setPet] = useState<AdminPetRow | undefined>(() =>
+    mockAdminPets.find((p) => p.pet_id === petId) as AdminPetRow | undefined
+  );
+  const [kennels, setKennels] = useState(mockKennels);
+  const [medical, setMedical] = useState(() =>
+    mockPetMedicalRecords.filter((m) => m.pet_id === petId)
+  );
+  const [logs, setLogs] = useState(() => mockPetStatusLogs.filter((l) => l.pet_id === petId));
+  const [rescues, setRescues] = useState<AdminRescueRow[]>(
+    mockRescueReports as AdminRescueRow[]
+  );
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
+
+  useEffect(() => {
+    setLoading(true);
+    void Promise.all([
+      loadAdminPets(),
+      loadKennels(),
+      loadRescueReports(),
+      loadPetMedicalRecords(petId),
+      loadPetStatusLogs(petId),
+    ]).then(([pets, kennelList, rescueList, medicalList, logList]) => {
+      setPet(pets.find((p) => p.pet_id === petId));
+      setKennels(kennelList);
+      setRescues(rescueList);
+      setMedical(medicalList);
+      setLogs(logList);
+      setLoading(false);
+    });
+  }, [petId]);
+
+  if (loading) {
+    return <p className="text-center py-16 text-slate-400">Loading pet…</p>;
+  }
 
   if (!pet) {
     return (
@@ -32,10 +73,8 @@ export function AdminPetDetailPage() {
     );
   }
 
-  const medical = mockPetMedicalRecords.filter((m) => m.pet_id === pet.pet_id);
-  const logs = mockPetStatusLogs.filter((l) => l.pet_id === pet.pet_id);
   const rescue = pet.from_report_id
-    ? mockRescueReports.find((r) => r.report_id === pet.from_report_id)
+    ? rescues.find((r) => r.report_id === pet.from_report_id)
     : null;
 
   return (
@@ -93,7 +132,7 @@ export function AdminPetDetailPage() {
                 onChange={(e) => setPet({ ...pet, kennel_id: Number(e.target.value) })}
                 className={adminInputClass()}
               >
-                {mockKennels.map((k) => (
+                {kennels.map((k) => (
                   <option key={k.kennel_id} value={k.kennel_id}>
                     {k.name}
                   </option>

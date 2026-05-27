@@ -1,16 +1,27 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusTimeline } from "@/components/public/StatusTimeline";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { adoptionProgressSteps, formatPublicEnum, adoptionStatusIndex } from "@/data/public-mock";
-import { getAdoptionById } from "@/lib/public-store";
+import {
+  adoptionProgressSteps,
+  formatPublicEnum,
+  adoptionStatusIndex,
+  type PublicAdoption,
+} from "@/data/public-mock";
+import { loadAdoptionById } from "@/lib/public-store";
 import { ArrowLeft } from "lucide-react";
 
 export function AccountAdoptionDetailPage() {
   const { id } = useParams();
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [adoption, setAdoption] = useState<PublicAdoption | undefined>();
 
-  const adoption = getAdoptionById(user.userId, Number(id));
+  useEffect(() => {
+    if (!user || !id) return;
+    void loadAdoptionById(user.userId, Number(id)).then(setAdoption);
+  }, [user, id]);
+
+  if (!user) return null;
 
   if (!adoption) {
     return (

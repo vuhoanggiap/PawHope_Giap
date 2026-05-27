@@ -15,11 +15,11 @@ export function RegisterPage() {
     return <Navigate to="/account" replace />;
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
-    const ok = register({
+    const ok = await register({
       username: String(fd.get("username") || ""),
       password: String(fd.get("password") || ""),
       fullName: String(fd.get("fullName") || ""),
@@ -27,7 +27,9 @@ export function RegisterPage() {
       phone: String(fd.get("phone") || "") || undefined,
     });
     if (!ok) {
-      setError("Could not create account. Username may be taken or password too short (min 6 characters).");
+      setError(
+        "Could not create account. Username may be taken, password too short (min 6), or API unavailable."
+      );
       return;
     }
     navigate("/account", { replace: true });

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -14,8 +15,8 @@ import {
   updatePublicProfile,
   type PublicUser,
 } from "@/lib/public-auth";
-import { getUnreadNotificationCount } from "@/lib/public-store";
-import { getCartItemCount } from "@/lib/public-commerce";
+import { loadCartItemCount } from "@/lib/public-commerce";
+import { loadUnreadNotificationCount } from "@/lib/public-store";
 
 interface PublicAuthContextValue {
   user: PublicUser | null;
@@ -28,7 +29,7 @@ interface PublicAuthContextValue {
     fullName: string;
     email: string;
     phone?: string;
-  }) => boolean;
+  }) => Promise<boolean>;
   logout: () => void;
   updateProfile: (patch: Partial<Pick<PublicUser, "fullName" | "email" | "phone">>) => void;
   refresh: () => void;
@@ -38,22 +39,32 @@ const PublicAuthContext = createContext<PublicAuthContextValue | null>(null);
 
 export function PublicAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(() => getStoredPublicUser());
-  const [tick, setTick] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
 
-  const refresh = useCallback(() => {
-    setUser(getStoredPublicUser());
-    setTick((t) => t + 1);
+  const refreshCounts = useCallback(async (u: PublicUser | null) => {
+    if (!u) {
+      setUnreadCount(0);
+      setCartCount(0);
+      return;
+    }
+    const [unread, cart] = await Promise.all([
+      loadUnreadNotificationCount(u.userId),
+      loadCartItemCount(u.userId),
+    ]);
+    setUnreadCount(unread);
+    setCartCount(cart);
   }, []);
 
-  const unreadCount = useMemo(() => {
-    void tick;
-    return user ? getUnreadNotificationCount(user.userId) : 0;
-  }, [user, tick]);
+  const refresh = useCallback(() => {
+    const u = getStoredPublicUser();
+    setUser(u);
+    void refreshCounts(u);
+  }, [refreshCounts]);
 
-  const cartCount = useMemo(() => {
-    void tick;
-    return user ? getCartItemCount(user.userId) : 0;
-  }, [user, tick]);
+  useEffect(() => {
+    void refreshCounts(user);
+  }, [user, refreshCounts]);
 
   const value = useMemo<PublicAuthContextValue>(
     () => ({
@@ -65,26 +76,29 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
         const u = loginPublic(username, password);
         if (!u) return false;
         setUser(u);
-        setTick((t) => t + 1);
+        void refreshCounts(u);
         return true;
       },
-      register: (input) => {
-        const u = registerPublic(input);
+      register: async (input) => {
+        const u = await registerPublic(input);
         if (!u) return false;
         setUser(u);
-        setTick((t) => t + 1);
+        void refreshCounts(u);
         return true;
       },
       logout: () => {
         clearPublicSession();
         setUser(null);
+        setUnreadCount(0);
+        setCartCount(0);
       },
       updateProfile: (patch) => {
-        const u = updatePublicProfile(patch);
-        if (u) setUser(u);
+        void updatePublicProfile(patch).then((u) => {
+          if (u) setUser(u);
+        });
       },
     }),
-    [user, unreadCount, cartCount, refresh]
+    [user, unreadCount, cartCount, refresh, refreshCounts]
   );
 
   return <PublicAuthContext.Provider value={value}>{children}</PublicAuthContext.Provider>;

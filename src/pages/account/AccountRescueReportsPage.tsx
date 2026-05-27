@@ -1,13 +1,19 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum } from "@/data/public-mock";
-import { getUserRescueReports } from "@/lib/public-store";
+import { formatPublicEnum, type PublicRescueReport } from "@/data/public-mock";
+import { loadUserRescueReports } from "@/lib/public-store";
 
 export function AccountRescueReportsPage() {
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [reports, setReports] = useState<PublicRescueReport[]>([]);
 
-  const reports = getUserRescueReports(user.userId);
+  useEffect(() => {
+    if (!user) return;
+    void loadUserRescueReports(user.userId).then(setReports);
+  }, [user]);
+
+  if (!user) return null;
 
   return (
     <div className="soft-card p-6 md:p-8">

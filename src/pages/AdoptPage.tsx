@@ -3,25 +3,21 @@ import { Link } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  adoptionGuidelines,
-  genderLabel,
-  mockPets,
-  speciesLabel,
-  type PetSpecies,
-} from "@/data/mock";
+import { adoptionGuidelines, genderLabel, speciesLabel, type PetSpecies } from "@/data/mock";
+import { useAdoptablePets } from "@/hooks/usePets";
 import { PawPrint, Search } from "lucide-react";
 
 type SpeciesFilter = "ALL" | PetSpecies;
 type AgeFilter = "ALL" | "UNDER_1" | "ADULT";
 
 export const AdoptPage = () => {
+  const { pets, loading, error } = useAdoptablePets();
   const [species, setSpecies] = useState<SpeciesFilter>("ALL");
   const [age, setAge] = useState<AgeFilter>("ALL");
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
-    return mockPets.filter((pet) => {
+    return pets.filter((pet) => {
       if (species !== "ALL" && pet.species !== species) return false;
       if (age === "UNDER_1" && pet.ageYears >= 1) return false;
       if (age === "ADULT" && pet.ageYears < 1) return false;
@@ -35,7 +31,7 @@ export const AdoptPage = () => {
       }
       return true;
     });
-  }, [species, age, query]);
+  }, [pets, species, age, query]);
 
   return (
     <>
@@ -110,6 +106,11 @@ export const AdoptPage = () => {
             <div className="flex-1 space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="soft-subtext">
+                  {loading
+                    ? "Loading pets…"
+                    : error
+                      ? `API unavailable — showing fallback. (${error})`
+                      : null}{" "}
                   Showing <span className="font-medium text-[#3d6b5c]">{filtered.length}</span> adoptable
                   pet{filtered.length !== 1 ? "s" : ""}
                 </p>

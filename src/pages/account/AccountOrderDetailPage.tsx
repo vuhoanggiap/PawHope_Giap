@@ -1,17 +1,24 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusTimeline } from "@/components/public/StatusTimeline";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { formatPublicEnum, orderProgressSteps, orderStatusIndex } from "@/data/public-mock";
-import { getOrderById } from "@/lib/public-commerce";
+import type { PublicOrder } from "@/data/public-mock";
+import { loadOrderById } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
 import { ArrowLeft } from "lucide-react";
 
 export function AccountOrderDetailPage() {
   const { id } = useParams();
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [order, setOrder] = useState<PublicOrder | undefined>();
 
-  const order = getOrderById(user.userId, Number(id));
+  useEffect(() => {
+    if (!user || !id) return;
+    void loadOrderById(user.userId, Number(id)).then(setOrder);
+  }, [user, id]);
+
+  if (!user) return null;
 
   if (!order) {
     return (

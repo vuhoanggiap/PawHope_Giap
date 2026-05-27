@@ -1,8 +1,14 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import { getAllProducts, getProductById, saveProduct } from "@/lib/admin-store";
+import {
+  getAllProducts,
+  getProductById,
+  loadAllProducts,
+  saveProductToStore,
+} from "@/lib/admin-store";
+import { USE_MOCK } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatVnd";
 import type { PublicProduct } from "@/data/public-mock";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
@@ -11,8 +17,9 @@ export function AdminProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const productId = Number(id);
-  const existing = getProductById(productId);
   const isNew = id === "new";
+  const [ready, setReady] = useState(isNew);
+  const existing = getProductById(productId);
 
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<PublicProduct>(
@@ -27,24 +34,36 @@ export function AdminProductDetailPage() {
     }
   );
 
-  if (!isNew && !existing) {
+  useEffect(() => {
+    if (isNew) return;
+    void loadAllProducts().then(() => {
+      const p = getProductById(productId);
+      if (p) setForm(p);
+      setReady(true);
+    });
+  }, [isNew, productId]);
+
+  if (!isNew && ready && !getProductById(productId)) {
     return <Navigate to="/admin/products" replace />;
   }
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    saveProduct(form);
-    setSaved(true);
-    setTimeout(() => {
-      navigate("/admin/products");
-    }, 800);
+    void saveProductToStore(form, isNew).then(() => {
+      setSaved(true);
+      setTimeout(() => navigate("/admin/products"), 800);
+    });
   };
 
   return (
     <div>
       <AdminPageHeader
         title={isNew ? "New product" : form.product_name}
-        description="Changes save locally and sync to the public shop preview."
+        description={
+          USE_MOCK
+            ? "Changes save locally (mock mode)."
+            : "Changes are sent to the products API."
+        }
         badge="Admin"
       />
 

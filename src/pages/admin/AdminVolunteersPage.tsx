@@ -1,19 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import {
-  getStaffName,
-  mockVolunteerApplications,
-  mockVolunteerInterviews,
-} from "@/data/admin-mock";
+import { mockVolunteerApplications, mockVolunteerInterviews } from "@/data/admin-mock";
+import { getStaffName, loadVolunteerApplications } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 
+type VolunteerAppRow = Awaited<ReturnType<typeof loadVolunteerApplications>>[number];
+
 export function AdminVolunteersPage() {
-  const [apps, setApps] = useState(mockVolunteerApplications);
-  const [selectedId, setSelectedId] = useState(apps[0]?.application_id ?? null);
+  const [apps, setApps] = useState<VolunteerAppRow[]>(
+    mockVolunteerApplications as VolunteerAppRow[]
+  );
+  const [selectedId, setSelectedId] = useState<number | null>(
+    mockVolunteerApplications[0]?.application_id ?? null
+  );
+
+  useEffect(() => {
+    void loadVolunteerApplications().then((list) => {
+      setApps(list);
+      setSelectedId((prev) => prev ?? list[0]?.application_id ?? null);
+    });
+  }, []);
   const selected = apps.find((a) => a.application_id === selectedId);
   const interviews = selected
     ? mockVolunteerInterviews.filter((i) => i.application_id === selected.application_id)

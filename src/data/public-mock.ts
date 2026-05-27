@@ -21,6 +21,7 @@ export interface PublicRescueReport {
   temperament: string;
   behavior: string;
   additional_note?: string;
+  image_url?: string;
   status: RescueStatus;
   created_at: string;
   updated_at: string;
@@ -47,6 +48,7 @@ export interface PublicNotification {
   is_read: boolean;
   created_at: string;
   link?: string;
+  related_id?: number;
 }
 
 /** Demo codes visitors can try on /rescue/track */
@@ -157,6 +159,8 @@ export interface PublicProduct {
 export interface PublicCartLine {
   product_id: number;
   quantity: number;
+  /** Set when loaded from Spring Boot cart API */
+  cart_id?: number;
 }
 
 export interface PublicOrderItem {

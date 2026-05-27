@@ -1,16 +1,29 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum } from "@/data/public-mock";
-import { getUserItemDonations, getUserMoneyDonations } from "@/lib/public-commerce";
+import {
+  formatPublicEnum,
+  type PublicItemDonation,
+  type PublicMoneyDonation,
+} from "@/data/public-mock";
+import { loadUserDonations } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
 import { Gift, Package } from "lucide-react";
 
 export function AccountDonationsPage() {
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [money, setMoney] = useState<PublicMoneyDonation[]>([]);
+  const [items, setItems] = useState<PublicItemDonation[]>([]);
 
-  const money = getUserMoneyDonations(user.userId);
-  const items = getUserItemDonations(user.userId);
+  useEffect(() => {
+    if (!user) return;
+    void loadUserDonations(user.userId).then(({ money: m, items: i }) => {
+      setMoney(m);
+      setItems(i);
+    });
+  }, [user]);
+
+  if (!user) return null;
 
   return (
     <div className="space-y-6">

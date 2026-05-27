@@ -1,14 +1,20 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum } from "@/data/public-mock";
-import { getUserAdoptions } from "@/lib/public-store";
+import { formatPublicEnum, type PublicAdoption } from "@/data/public-mock";
+import { loadUserAdoptions } from "@/lib/public-store";
 import { ChevronRight } from "lucide-react";
 
 export function AccountAdoptionsPage() {
   const { user } = usePublicAuth();
-  if (!user) return null;
+  const [adoptions, setAdoptions] = useState<PublicAdoption[]>([]);
 
-  const adoptions = getUserAdoptions(user.userId);
+  useEffect(() => {
+    if (!user) return;
+    void loadUserAdoptions(user.userId).then(setAdoptions);
+  }, [user]);
+
+  if (!user) return null;
 
   return (
     <div className="soft-card p-6 md:p-8">

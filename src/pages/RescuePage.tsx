@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { saveRescueReport } from "@/lib/public-store";
 import { AlertTriangle, CheckCircle2, MapPin, Phone, Sparkles } from "lucide-react";
-import { organization } from "@/data/mock";
+import { useOrganization } from "@/hooks/useOrganization";
 
 const steps = [
   "Your report is logged with date, location, and photos.",
@@ -17,13 +17,14 @@ const steps = [
 ];
 
 export const RescuePage = () => {
+  const org = useOrganization();
   const { user } = usePublicAuth();
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const report = saveRescueReport({
+    const report = await saveRescueReport({
       user_id: user?.userId,
       reporter_name: String(fd.get("name") || ""),
       reporter_phone: String(fd.get("phone") || ""),
@@ -33,6 +34,7 @@ export const RescuePage = () => {
       temperament: String(fd.get("temperament") || "SCARED"),
       behavior: String(fd.get("behavior") || "ACTIVE"),
       additional_note: String(fd.get("note") || "") || undefined,
+      image_url: String(fd.get("imageUrl") || "").trim() || undefined,
     });
     setTrackingCode(report.tracking_code);
   };
@@ -87,10 +89,10 @@ export const RescuePage = () => {
                   <h3 className="font-medium">Rescue hotline</h3>
                 </div>
                 <p className="flex items-center gap-2 text-xl font-medium">
-                  <Phone size={20} className="text-[#ffd4a8]" /> {organization.hotline}
+                  <Phone size={20} className="text-[#ffd4a8]" /> {org.hotline}
                 </p>
                 <p className="flex items-start gap-2 text-sm text-white/80 leading-relaxed">
-                  <MapPin size={18} className="shrink-0 mt-0.5 text-[#ffd4a8]" /> {organization.address}
+                  <MapPin size={18} className="shrink-0 mt-0.5 text-[#ffd4a8]" /> {org.address}
                 </p>
               </div>
             </div>
@@ -196,6 +198,18 @@ export const RescuePage = () => {
                         name="note"
                         required
                         placeholder="Condition, access notes, landmarks, best time to reach you..."
+                        className={fieldClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-[#5a6b60]">
+                        Photo URL <span className="font-normal text-[#a8b8ae]">(optional)</span>
+                      </label>
+                      <Input
+                        name="imageUrl"
+                        type="url"
+                        placeholder="https://… link to a photo of the animal or scene"
                         className={fieldClass}
                       />
                     </div>

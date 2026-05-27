@@ -47,6 +47,7 @@ import { AdminProductDetailPage } from "./pages/admin/AdminProductDetailPage";
 import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
 import { AdminEmailLogsPage } from "./pages/admin/AdminEmailLogsPage";
 import { AdminVolunteerSchedulePage } from "./pages/admin/AdminVolunteerSchedulePage";
+import { AdminMySchedulePage } from "./pages/admin/AdminMySchedulePage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminVolunteersPage } from "./pages/admin/AdminVolunteersPage";
 import { AdminNotificationsPage } from "./pages/admin/AdminNotificationsPage";
@@ -101,9 +102,10 @@ function App() {
               <Route path="kennels" element={<AdminKennelsPage />} />
               <Route path="adoptions" element={<AdminAdoptionsPage />} />
               <Route path="adoptions/:id" element={<AdminAdoptionDetailPage />} />
-              <Route path="donations" element={<AdminDonationsPage />} />
+              <Route path="my-schedule" element={<AdminMySchedulePage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route element={<RequireRole roles={["ADMIN"]} />}>
+                <Route path="donations" element={<AdminDonationsPage />} />
                 <Route path="products" element={<AdminProductsPage />} />
                 <Route path="products/:id" element={<AdminProductDetailPage />} />
                 <Route path="orders" element={<AdminOrdersPage />} />

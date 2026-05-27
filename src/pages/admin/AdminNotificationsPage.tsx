@@ -1,25 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockNotifications } from "@/data/admin-mock";
+import { loadNotifications, markAdminNotificationRead } from "@/lib/admin/admin-data";
+import { getAdminNotificationLink, getStaffUser } from "@/lib/admin/admin-role";
+import { USE_MOCK } from "@/lib/api-client";
 import { formatEnum } from "@/lib/adminFormat";
 
-const TYPE_LINKS: Record<string, string> = {
-  RESCUE_ASSIGNED: "/admin/rescue",
-  ADOPTION_MEETING: "/admin/adoptions",
-  ADOPTION_HANDOVER: "/admin/adoptions",
-  ADOPTION_FOLLOWUP: "/admin/adoptions",
-  VOLUNTEER_RESULT: "/admin/volunteers",
-  ORDER_STATUS: "/admin/orders",
-  DONATION: "/admin/donations",
-};
+type NotificationRow = Awaited<ReturnType<typeof loadNotifications>>[number];
 
 export function AdminNotificationsPage() {
-  const [items, setItems] = useState(mockNotifications);
+  const staffRole = getStaffUser()?.role;
+  const [items, setItems] = useState<NotificationRow[]>(
+    mockNotifications as NotificationRow[]
+  );
+
+  useEffect(() => {
+    void loadNotifications().then(setItems);
+  }, []);
   const [selectedId, setSelectedId] = useState(items[0]?.noti_id ?? null);
   const selected = items.find((n) => n.noti_id === selectedId);
+
+  const refresh = () => void loadNotifications().then(setItems);
+
+  const handleMarkRead = (notiId: number) => {
+    if (USE_MOCK) {
+      setItems((prev) => prev.map((i) => (i.noti_id === notiId ? { ...i, is_read: true } : i)));
+      return;
+    }
+    void markAdminNotificationRead(notiId).then(refresh);
+  };
 
   return (
     <div>
@@ -55,11 +67,7 @@ export function AdminNotificationsPage() {
               !selected.is_read ? (
                 <button
                   type="button"
-                  onClick={() =>
-                    setItems((prev) =>
-                      prev.map((i) => (i.noti_id === selected.noti_id ? { ...i, is_read: true } : i))
-                    )
-                  }
+                  onClick={() => handleMarkRead(selected.noti_id)}
                   className="admin-filter-pill-active text-xs"
                 >
                   Mark read
@@ -78,9 +86,9 @@ export function AdminNotificationsPage() {
               <AdminField label="Read" value={selected.is_read ? "Yes" : "No"} />
             </AdminFieldGrid>
             <AdminField label="Message" value={selected.message} className="mt-4" />
-            {TYPE_LINKS[selected.type] ? (
+            {getAdminNotificationLink(selected.type, staffRole, selected.related_id ?? undefined) ? (
               <Link
-                to={TYPE_LINKS[selected.type]}
+                to={getAdminNotificationLink(selected.type, staffRole, selected.related_id ?? undefined)!}
                 className="inline-block mt-4 text-sm text-[#f6931d] hover:underline"
               >
                 Open related module →

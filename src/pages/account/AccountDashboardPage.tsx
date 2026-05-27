@@ -1,20 +1,43 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum } from "@/data/public-mock";
-import { getUserAdoptions, getUserNotifications, getUserRescueReports } from "@/lib/public-store";
-import { getCartSubtotal, getUserOrders } from "@/lib/public-commerce";
+import { formatPublicEnum, type PublicAdoption, type PublicNotification } from "@/data/public-mock";
+import type { PublicRescueReport } from "@/data/public-mock";
+import {
+  loadUserAdoptions,
+  loadUserNotifications,
+  loadUserRescueReports,
+} from "@/lib/public-store";
+import type { PublicOrder } from "@/data/public-mock";
+import { getCartSubtotal, loadUserOrders } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
 import { Bell, ChevronRight, HeartHandshake, LifeBuoy, Search, ShoppingBag, ShoppingCart } from "lucide-react";
 
 export function AccountDashboardPage() {
   const { user, cartCount } = usePublicAuth();
+  const [adoptions, setAdoptions] = useState<PublicAdoption[]>([]);
+  const [rescues, setRescues] = useState<PublicRescueReport[]>([]);
+  const [notifications, setNotifications] = useState<PublicNotification[]>([]);
+  const [orders, setOrders] = useState<PublicOrder[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    void Promise.all([
+      loadUserAdoptions(user.userId),
+      loadUserRescueReports(user.userId),
+      loadUserNotifications(user.userId),
+      loadUserOrders(user.userId),
+    ]).then(([a, r, n, o]) => {
+      setAdoptions(a);
+      setRescues(r);
+      setNotifications(n);
+      setOrders(o);
+    });
+  }, [user]);
+
   if (!user) return null;
 
-  const adoptions = getUserAdoptions(user.userId);
-  const rescues = getUserRescueReports(user.userId);
-  const notifications = getUserNotifications(user.userId);
   const unread = notifications.filter((n) => !n.is_read).length;
-  const orders = getUserOrders(user.userId);
   const cartSubtotal = getCartSubtotal(user.userId);
 
   const activeAdoptions = adoptions.filter((a) => !["COMPLETED", "REJECTED", "CANCELLED"].includes(a.status));

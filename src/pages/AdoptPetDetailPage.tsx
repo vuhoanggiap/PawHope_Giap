@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { adoptionGuidelines, genderLabel, mockPets, speciesLabel } from "@/data/mock";
+import { adoptionGuidelines, genderLabel, mockPets, speciesLabel, type MockPet } from "@/data/mock";
+import { USE_MOCK } from "@/lib/api-client";
+import { fetchPetById } from "@/lib/api/pets-api";
 import { saveAdoption } from "@/lib/public-store";
 import { ArrowLeft, CheckCircle2, Heart } from "lucide-react";
 
@@ -14,9 +16,30 @@ export const AdoptPetDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = usePublicAuth();
-  const pet = mockPets.find((p) => p.id === Number(id));
+  const petId = Number(id);
+  const [pet, setPet] = useState<MockPet | undefined>(() =>
+    mockPets.find((p) => p.id === petId)
+  );
+  const [loadingPet, setLoadingPet] = useState(!USE_MOCK && petId > 0);
   const [submitted, setSubmitted] = useState<{ code: string; id: number } | null>(null);
   const [agreed, setAgreed] = useState(false);
+
+  useEffect(() => {
+    if (USE_MOCK || !petId) return;
+    setLoadingPet(true);
+    void fetchPetById(petId)
+      .then(setPet)
+      .catch(() => setPet(mockPets.find((p) => p.id === petId)))
+      .finally(() => setLoadingPet(false));
+  }, [petId]);
+
+  if (loadingPet) {
+    return (
+      <div className="public-container py-16 text-center sm:py-24">
+        <p className="soft-subtext">Loading pet profile…</p>
+      </div>
+    );
+  }
 
   if (!pet) {
     return (
@@ -30,14 +53,14 @@ export const AdoptPetDetailPage = () => {
     );
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) {
       navigate("/login", { state: { from: `/adopt/${pet.id}` } });
       return;
     }
     const fd = new FormData(e.currentTarget);
-    const adoption = saveAdoption({
+    const adoption = await saveAdoption({
       user_id: user.userId,
       pet_id: pet.id,
       pet_name: pet.name,

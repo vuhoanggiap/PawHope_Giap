@@ -1,15 +1,18 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import {
   getAdoptionGuidelines,
   getOrganization,
+  loadAdoptionGuidelines,
+  loadOrganization,
   saveGuideline,
   saveOrganization,
   type AdminGuideline,
   type AdminOrganization,
 } from "@/lib/admin-store";
+import { USE_MOCK } from "@/lib/api-client";
 import { CheckCircle2, Plus } from "lucide-react";
 
 export function AdminSettingsPage() {
@@ -17,6 +20,11 @@ export function AdminSettingsPage() {
   const [org, setOrg] = useState<AdminOrganization>(() => getOrganization());
   const [guidelines, setGuidelines] = useState<AdminGuideline[]>(() => getAdoptionGuidelines());
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void loadOrganization().then(setOrg);
+    void loadAdoptionGuidelines().then(setGuidelines);
+  }, []);
 
   const flashSaved = () => {
     setSaved(true);
@@ -57,7 +65,10 @@ export function AdminSettingsPage() {
 
       {saved ? (
         <div className="admin-panel mb-6 flex items-center gap-2 p-4 text-sm text-emerald-300">
-          <CheckCircle2 size={18} /> Settings saved locally (mock preview).
+          <CheckCircle2 size={18} />{" "}
+          {USE_MOCK
+            ? "Settings saved locally (mock mode)."
+            : "Saved locally — backend has no update API for organization/guidelines yet."}
         </div>
       ) : null}
 

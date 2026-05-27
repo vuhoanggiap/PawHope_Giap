@@ -2,10 +2,20 @@ import { Link } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockAdminPets, mockKennels } from "@/data/admin-mock";
+import { loadAdminPets, loadKennels, type AdminPetRow } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function AdminPetsPage() {
+  const [pets, setPets] = useState<AdminPetRow[]>(mockAdminPets as AdminPetRow[]);
+  const [kennels, setKennels] = useState(mockKennels);
+
+  useEffect(() => {
+    void loadAdminPets().then(setPets);
+    void loadKennels().then(setKennels);
+  }, []);
+
   return (
     <div>
       <AdminPageHeader
@@ -14,8 +24,8 @@ export function AdminPetsPage() {
       />
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {mockAdminPets.map((pet) => {
-          const kennel = mockKennels.find((k) => k.kennel_id === pet.kennel_id);
+        {pets.map((pet) => {
+          const kennel = kennels.find((k) => k.kennel_id === pet.kennel_id);
           return (
             <Link
               key={pet.pet_id}

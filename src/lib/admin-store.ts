@@ -1,5 +1,13 @@
 import { adoptionGuidelines, organization } from "@/data/mock";
 import { mockProducts, type PublicProduct } from "@/data/public-mock";
+import { USE_MOCK } from "@/lib/api-client";
+import { fetchAdoptionGuidelines } from "@/lib/api/adoption-guidelines-api";
+import { fetchOrganizationInfo } from "@/lib/api/organization-api";
+import {
+  fetchAllProducts,
+  saveProductApi,
+  toggleProductActiveApi,
+} from "@/lib/api/products-api";
 
 const PRODUCTS_KEY = "pawshope_admin_products";
 const ORG_KEY = "pawshope_admin_organization";
@@ -54,7 +62,24 @@ const defaultGuidelines: AdminGuideline[] = adoptionGuidelines.map((g) => ({
   priority: g.priority,
 }));
 
+let apiAdminProducts: PublicProduct[] | null = null;
+
+export async function loadAllProducts(): Promise<PublicProduct[]> {
+  if (USE_MOCK) {
+    apiAdminProducts = readJson<PublicProduct[]>(PRODUCTS_KEY, mockProducts);
+    return apiAdminProducts;
+  }
+  if (apiAdminProducts) return apiAdminProducts;
+  try {
+    apiAdminProducts = await fetchAllProducts();
+    return apiAdminProducts;
+  } catch {
+    return readJson<PublicProduct[]>(PRODUCTS_KEY, mockProducts);
+  }
+}
+
 export function getAllProducts(): PublicProduct[] {
+  if (!USE_MOCK && apiAdminProducts) return apiAdminProducts;
   return readJson<PublicProduct[]>(PRODUCTS_KEY, mockProducts);
 }
 
@@ -72,6 +97,18 @@ export function saveProduct(product: PublicProduct) {
   if (idx >= 0) list[idx] = product;
   else list.unshift(product);
   writeJson(PRODUCTS_KEY, list);
+  if (!USE_MOCK) apiAdminProducts = list;
+}
+
+export async function saveProductToStore(product: PublicProduct, isNew: boolean) {
+  if (USE_MOCK) {
+    saveProduct(product);
+    return;
+  }
+  const dto = await saveProductApi(product, isNew);
+  apiAdminProducts = null;
+  await loadAllProducts();
+  if (isNew && dto.productId) product.product_id = dto.productId;
 }
 
 export function toggleProductActive(productId: number) {
@@ -79,6 +116,39 @@ export function toggleProductActive(productId: number) {
     p.product_id === productId ? { ...p, is_active: !p.is_active } : p
   );
   writeJson(PRODUCTS_KEY, list);
+  if (!USE_MOCK) apiAdminProducts = list;
+}
+
+export async function toggleProductActiveInStore(productId: number) {
+  if (USE_MOCK) {
+    toggleProductActive(productId);
+    return;
+  }
+  const p = getProductById(productId);
+  if (!p) return;
+  await toggleProductActiveApi(productId, !p.is_active);
+  apiAdminProducts = null;
+  await loadAllProducts();
+}
+
+export async function loadOrganization(): Promise<AdminOrganization> {
+  if (USE_MOCK) return getOrganization();
+  try {
+    const org = await fetchOrganizationInfo();
+    const mapped: AdminOrganization = {
+      name: org.name,
+      tagline: org.tagline,
+      hotline: org.hotline,
+      email: org.email,
+      address: org.address,
+      mission: org.mission,
+      facebook: org.facebook,
+    };
+    writeJson(ORG_KEY, mapped);
+    return mapped;
+  } catch {
+    return getOrganization();
+  }
 }
 
 export function getOrganization(): AdminOrganization {
@@ -87,6 +157,23 @@ export function getOrganization(): AdminOrganization {
 
 export function saveOrganization(org: AdminOrganization) {
   writeJson(ORG_KEY, org);
+}
+
+export async function loadAdoptionGuidelines(): Promise<AdminGuideline[]> {
+  if (USE_MOCK) return getAdoptionGuidelines();
+  try {
+    const list = await fetchAdoptionGuidelines();
+    const mapped = list.map((g) => ({
+      guide_id: g.id,
+      title: g.title,
+      content: g.content,
+      priority: g.priority,
+    }));
+    writeJson(GUIDELINES_KEY, mapped);
+    return mapped;
+  } catch {
+    return getAdoptionGuidelines();
+  }
 }
 
 export function getAdoptionGuidelines(): AdminGuideline[] {

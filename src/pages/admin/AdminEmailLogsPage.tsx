@@ -1,12 +1,22 @@
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { getStaffName, mockEmailLogs } from "@/data/admin-mock";
+import { mockEmailLogs } from "@/data/admin-mock";
+import { getStaffName, loadEmailLogs } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
+import { useEffect, useState } from "react";
+
+type EmailLogRow = Awaited<ReturnType<typeof loadEmailLogs>>[number];
 
 export function AdminEmailLogsPage() {
-  const pending = mockEmailLogs.filter((e) => e.status === "PENDING").length;
-  const failed = mockEmailLogs.filter((e) => e.status === "FAILED").length;
+  const [logs, setLogs] = useState<EmailLogRow[]>(mockEmailLogs as EmailLogRow[]);
+
+  useEffect(() => {
+    void loadEmailLogs().then(setLogs);
+  }, []);
+
+  const pending = logs.filter((e) => e.status === "PENDING").length;
+  const failed = logs.filter((e) => e.status === "FAILED").length;
 
   return (
     <div>
@@ -19,7 +29,7 @@ export function AdminEmailLogsPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="admin-stat-card p-5">
           <p className="text-sm text-slate-400">Total logged</p>
-          <p className="mt-1 text-2xl font-semibold text-white">{mockEmailLogs.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{logs.length}</p>
         </div>
         <div className="admin-stat-card p-5">
           <p className="text-sm text-slate-400">Pending send</p>
@@ -32,7 +42,7 @@ export function AdminEmailLogsPage() {
       </div>
 
       <AdminDataTable
-        rows={mockEmailLogs.map((e) => ({
+        rows={logs.map((e) => ({
           id: e.email_id,
           recipient: e.recipient_email,
           subject: e.subject,

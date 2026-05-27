@@ -3,17 +3,18 @@ import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { organization } from "@/data/mock";
+import { useOrganization } from "@/hooks/useOrganization";
 import { CheckCircle2, Heart, Mail, MapPin, Phone } from "lucide-react";
 
-const contactItems = [
-  { icon: MapPin, label: "Sanctuary address", value: organization.address },
-  { icon: Phone, label: "Hotline", value: organization.hotline, highlight: true },
-  { icon: Mail, label: "Email", value: organization.email },
-];
-
 export const ContactPage = () => {
+  const org = useOrganization();
   const [submitted, setSubmitted] = useState(false);
+
+  const contactItems = [
+    { icon: MapPin, label: "Sanctuary address", value: org.address },
+    { icon: Phone, label: "Hotline", value: org.hotline, highlight: true },
+    { icon: Mail, label: "Email", value: org.email },
+  ];
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

@@ -1,20 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import {
-  adminDashboardStats,
-  getCampaignTitle,
   mockDonationCampaigns,
   mockDonations,
   mockItemDonations,
 } from "@/data/admin-mock";
+import {
+  getCampaignTitle,
+  loadDonationCampaigns,
+  loadDonations,
+  loadItemDonations,
+} from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 
 export function AdminDonationsPage() {
   const [tab, setTab] = useState("financial");
-  const total = adminDashboardStats.donations.totalVnd;
+  const [donations, setDonations] = useState(mockDonations);
+  const [campaigns, setCampaigns] = useState(mockDonationCampaigns);
+  const [itemDonations, setItemDonations] = useState(mockItemDonations);
+
+  useEffect(() => {
+    void loadDonations().then(setDonations);
+    void loadDonationCampaigns().then(setCampaigns);
+    void loadItemDonations().then(setItemDonations);
+  }, []);
+
+  const total = donations.reduce((s, d) => s + d.amount, 0);
 
   return (
     <div>
@@ -30,12 +44,12 @@ export function AdminDonationsPage() {
         </div>
         <div className="admin-stat-card p-5">
           <p className="text-sm text-slate-400">Transactions</p>
-          <p className="mt-1 text-2xl font-semibold text-white">{adminDashboardStats.donations.count}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{donations.length}</p>
         </div>
         <div className="admin-stat-card p-5">
           <p className="text-sm text-slate-400">Pending payments</p>
           <p className="mt-1 text-2xl font-semibold text-amber-400">
-            {mockDonations.filter((d) => d.payment_status === "PENDING").length}
+            {donations.filter((d) => d.payment_status === "PENDING").length}
           </p>
         </div>
       </div>
@@ -53,7 +67,7 @@ export function AdminDonationsPage() {
 
       {tab === "financial" ? (
         <AdminDataTable
-          rows={mockDonations.map((d) => ({
+          rows={donations.map((d) => ({
             id: d.donation_id,
             donor: d.donor_name,
             campaign: getCampaignTitle(d.campaign_id),
@@ -78,7 +92,7 @@ export function AdminDonationsPage() {
 
       {tab === "items" ? (
         <div className="space-y-4">
-          {mockItemDonations.map((item) => (
+          {itemDonations.map((item) => (
             <AdminPanel key={item.item_donation_id} title={item.item_name}>
               <AdminFieldGrid cols={3}>
                 <AdminField label="Donor" value={item.donor_name} />
@@ -96,7 +110,7 @@ export function AdminDonationsPage() {
 
       {tab === "campaigns" ? (
         <div className="grid md:grid-cols-2 gap-4">
-          {mockDonationCampaigns.map((c) => {
+          {campaigns.map((c) => {
             const pct = Math.round((c.raised_amount / c.target_amount) * 100);
             return (
               <AdminPanel key={c.campaign_id} title={c.title}>

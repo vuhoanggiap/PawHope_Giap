@@ -1,13 +1,14 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { StatusTimeline } from "@/components/public/StatusTimeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatPublicEnum, rescueStatusIndex } from "@/data/public-mock";
-import { getRescueByCode } from "@/lib/public-store";
+import { loadRescueByCode } from "@/lib/public-store";
+import type { PublicRescueReport } from "@/data/public-mock";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Search } from "lucide-react";
+import { AlertTriangle, RefreshCw, Search } from "lucide-react";
 
 const rescueSteps = [
   { id: "pending", label: "Report received", description: "Your case is logged and prioritized." },
@@ -29,8 +30,36 @@ export function RescueTrackPage() {
   const initial = paramCode ?? searchParams.get("code") ?? "";
   const [query, setQuery] = useState(initial);
   const [searched, setSearched] = useState(initial.trim());
+  const [report, setReport] = useState<PublicRescueReport | undefined>();
+  const [loading, setLoading] = useState(Boolean(initial.trim()));
 
-  const report = searched ? getRescueByCode(searched) : undefined;
+  const fetchReport = useCallback((code: string, showSpinner = true) => {
+    if (!code.trim()) {
+      setReport(undefined);
+      setLoading(false);
+      return;
+    }
+    if (showSpinner) setLoading(true);
+    void loadRescueByCode(code).then((r) => {
+      setReport(r);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!searched.trim()) {
+      setReport(undefined);
+      setLoading(false);
+      return;
+    }
+    fetchReport(searched);
+  }, [searched, fetchReport]);
+
+  useEffect(() => {
+    if (!searched.trim()) return;
+    const id = window.setInterval(() => fetchReport(searched, false), 60_000);
+    return () => window.clearInterval(id);
+  }, [searched, fetchReport]);
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -101,6 +130,8 @@ export function RescueTrackPage() {
             <div className="soft-card p-10 text-center soft-subtext text-sm">
               Enter a code above to view your rescue timeline.
             </div>
+          ) : loading ? (
+            <div className="soft-card p-10 text-center soft-subtext text-sm">Loading report…</div>
           ) : !report ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 flex gap-3">
               <AlertTriangle className="text-amber-600 shrink-0" />
@@ -124,16 +155,35 @@ export function RescueTrackPage() {
                   <p className="text-sm soft-subtext mt-1">
                     Submitted {report.created_at} · Updated {report.updated_at}
                   </p>
+                  <p className="text-xs soft-subtext mt-2">Status refreshes every minute.</p>
                 </div>
-                <span
-                  className={cn(
-                    "text-xs font-semibold px-3 py-1 rounded-full border",
-                    urgencyTone[report.urgency_level] ?? urgencyTone.MEDIUM
-                  )}
-                >
-                  {formatPublicEnum(report.urgency_level)} urgency
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-[#2c5f51]/15"
+                    onClick={() => fetchReport(searched)}
+                  >
+                    <RefreshCw size={16} className="mr-2" /> Refresh
+                  </Button>
+                  <span
+                    className={cn(
+                      "text-xs font-semibold px-3 py-1 rounded-full border",
+                      urgencyTone[report.urgency_level] ?? urgencyTone.MEDIUM
+                    )}
+                  >
+                    {formatPublicEnum(report.urgency_level)} urgency
+                  </span>
+                </div>
               </div>
+
+              {report.image_url ? (
+                <img
+                  src={report.image_url}
+                  alt="Rescue scene"
+                  className="w-full max-h-64 rounded-2xl object-cover border border-[#2c5f51]/10"
+                />
+              ) : null}
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>

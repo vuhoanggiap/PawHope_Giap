@@ -2,15 +2,23 @@ import { Link } from "react-router-dom";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { mockOrders } from "@/data/admin-mock";
+import { loadOrders } from "@/lib/admin/admin-data";
 import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function AdminOrdersPage() {
+  const [orders, setOrders] = useState(mockOrders);
+
+  useEffect(() => {
+    void loadOrders().then(setOrders);
+  }, []);
+
   return (
     <div>
       <AdminPageHeader title="Shop orders" description="Open an order for shipping and payment details." badge="Admin" />
 
       <div className="space-y-3">
-        {mockOrders.map((o) => (
+        {orders.map((o) => (
           <Link
             key={o.order_id}
             to={`/admin/orders/${o.order_id}`}

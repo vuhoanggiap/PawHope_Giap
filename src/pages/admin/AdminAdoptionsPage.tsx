@@ -2,9 +2,17 @@ import { Link } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockAdoptions } from "@/data/admin-mock";
+import { loadAdoptions } from "@/lib/admin/admin-data";
 import { ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function AdminAdoptionsPage() {
+  const [adoptions, setAdoptions] = useState(mockAdoptions);
+
+  useEffect(() => {
+    void loadAdoptions().then(setAdoptions);
+  }, []);
+
   return (
     <div>
       <AdminPageHeader
@@ -13,7 +21,7 @@ export function AdminAdoptionsPage() {
       />
 
       <div className="space-y-3">
-        {mockAdoptions.map((a) => (
+        {adoptions.map((a) => (
           <Link
             key={a.adoption_id}
             to={`/admin/adoptions/${a.adoption_id}`}

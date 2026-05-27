@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockOrderItems, mockOrders } from "@/data/admin-mock";
+import { loadOrderItems, loadOrders } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 import { ArrowLeft } from "lucide-react";
 
 export function AdminOrderDetailPage() {
   const { id } = useParams();
   const orderId = Number(id);
-  const initial = mockOrders.find((o) => o.order_id === orderId);
-  const [order, setOrder] = useState(initial);
-  const items = mockOrderItems[orderId] ?? [];
+  const [order, setOrder] = useState(() => mockOrders.find((o) => o.order_id === orderId));
+  const [items, setItems] = useState(mockOrderItems[orderId] ?? []);
+
+  useEffect(() => {
+    void loadOrders().then((list) => setOrder(list.find((o) => o.order_id === orderId)));
+    void loadOrderItems(orderId).then(setItems);
+  }, [orderId]);
 
   if (!order) {
     return (

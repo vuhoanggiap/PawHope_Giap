@@ -1,13 +1,25 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { getUserNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/public-store";
+import { type PublicNotification } from "@/data/public-mock";
+import {
+  loadUserNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/lib/public-store";
 import { cn } from "@/lib/utils";
 
 export function AccountNotificationsPage() {
   const { user, refresh } = usePublicAuth();
+  const [items, setItems] = useState<PublicNotification[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadUserNotifications(user.userId).then(setItems);
+  }, [user]);
+
   if (!user) return null;
 
-  const items = getUserNotifications(user.userId);
   const unread = items.filter((n) => !n.is_read).length;
 
   return (
@@ -21,8 +33,10 @@ export function AccountNotificationsPage() {
           <button
             type="button"
             onClick={() => {
-              markAllNotificationsRead(user.userId);
-              refresh();
+              void markAllNotificationsRead(user.userId).then(() => {
+                void loadUserNotifications(user.userId).then(setItems);
+                refresh();
+              });
             }}
             className="text-sm font-medium text-[#f6931d] hover:underline"
           >
@@ -51,8 +65,10 @@ export function AccountNotificationsPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      markNotificationRead(n.noti_id);
-                      refresh();
+                      void markNotificationRead(n.noti_id).then(() => {
+                        void loadUserNotifications(user.userId).then(setItems);
+                        refresh();
+                      });
                     }}
                     className="text-xs font-medium text-[#f6931d] hover:underline shrink-0"
                   >

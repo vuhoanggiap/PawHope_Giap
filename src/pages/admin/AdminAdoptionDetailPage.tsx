@@ -1,29 +1,71 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { mockAdoptions } from "@/data/admin-mock";
 import {
+  applyAdoptionAction,
   getStaffName,
-  mockAdoptionFollowups,
-  mockAdoptionHandovers,
-  mockAdoptionMeetings,
-  mockAdoptions,
-} from "@/data/admin-mock";
+  loadAdoptionFollowups,
+  loadAdoptionHandovers,
+  loadAdoptionMeetings,
+  loadAdoptions,
+} from "@/lib/admin/admin-data";
+import { ApiError, USE_MOCK } from "@/lib/api-client";
+import { staffIsAdmin } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
 import { ArrowLeft } from "lucide-react";
 
+type MeetingRow = Awaited<ReturnType<typeof loadAdoptionMeetings>>[number];
+type HandoverRow = Awaited<ReturnType<typeof loadAdoptionHandovers>>[number];
+type FollowupRow = Awaited<ReturnType<typeof loadAdoptionFollowups>>[number];
+
 export function AdminAdoptionDetailPage() {
+  const canEditWorkflow = staffIsAdmin();
   const { id } = useParams();
   const adoptionId = Number(id);
-  const initial = mockAdoptions.find((a) => a.adoption_id === adoptionId);
-  const [adoption, setAdoption] = useState(initial);
+  const [adoption, setAdoption] = useState(
+    () => mockAdoptions.find((a) => a.adoption_id === adoptionId)
+  );
+  const [meetings, setMeetings] = useState<MeetingRow[]>([]);
+  const [handovers, setHandovers] = useState<HandoverRow[]>([]);
+  const [followups, setFollowups] = useState<FollowupRow[]>([]);
   const [tab, setTab] = useState("application");
+  const [message, setMessage] = useState<string | null>(null);
 
-  const meetings = mockAdoptionMeetings.filter((m) => m.adoption_id === adoptionId);
-  const handovers = mockAdoptionHandovers.filter((h) => h.adoption_id === adoptionId);
-  const followups = mockAdoptionFollowups.filter((f) => f.adoption_id === adoptionId);
+  const reloadAdoption = useCallback(() => {
+    void loadAdoptions().then((list) => {
+      setAdoption(list.find((a) => a.adoption_id === adoptionId));
+    });
+  }, [adoptionId]);
+
+  const reloadWorkflow = useCallback(() => {
+    void loadAdoptionMeetings(adoptionId).then(setMeetings);
+    void loadAdoptionHandovers(adoptionId).then(setHandovers);
+    void loadAdoptionFollowups(adoptionId).then(setFollowups);
+  }, [adoptionId]);
+
+  useEffect(() => {
+    reloadAdoption();
+    reloadWorkflow();
+  }, [reloadAdoption, reloadWorkflow]);
+
+  const runAction = (action: Parameters<typeof applyAdoptionAction>[1], extra?: { paymentStatus?: string }) => {
+    setMessage(null);
+    if (USE_MOCK) {
+      setMessage("Action saved locally (mock mode).");
+      return;
+    }
+    void applyAdoptionAction(adoptionId, action, extra)
+      .then(() => {
+        setMessage("Updated successfully.");
+        reloadAdoption();
+        reloadWorkflow();
+      })
+      .catch((e) => setMessage(e instanceof ApiError ? e.message : "Action failed"));
+  };
 
   if (!adoption) {
     return (
@@ -43,6 +85,10 @@ export function AdminAdoptionDetailPage() {
       </Link>
 
       <AdminPageHeader title={adoption.application_code} description={`Pet: ${adoption.pet_name}`} />
+
+      {message ? (
+        <p className="mb-4 text-sm text-slate-400">{message}</p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 mb-6">
         <StatusBadge value={adoption.status} />
@@ -89,74 +135,80 @@ export function AdminAdoptionDetailPage() {
 
           <AdminPanel title="Staff review">
             <AdminFieldGrid cols={3}>
-              <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
-                <select
-                  value={adoption.status}
-                  onChange={(e) => setAdoption({ ...adoption, status: e.target.value })}
-                  className={adminInputClass()}
-                >
-                  {[
-                    "PENDING",
-                    "MEETING_SCHEDULED",
-                    "INTERVIEWING",
-                    "APPROVED",
-                    "REJECTED",
-                    "HANDOVER_SCHEDULED",
-                    "COMPLETED",
-                    "CANCELLED",
-                  ].map((s) => (
-                    <option key={s} value={s}>
-                      {formatEnum(s)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Review status</p>
-                <select
-                  value={adoption.review_status}
-                  onChange={(e) => setAdoption({ ...adoption, review_status: e.target.value })}
-                  className={adminInputClass()}
-                >
-                  {["NORMAL", "NEED_MORE_INFO", "SUSPICIOUS", "PRIORITY"].map((s) => (
-                    <option key={s} value={s}>
-                      {formatEnum(s)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <AdminField label="Status" value={formatEnum(adoption.status)} />
+              <AdminField label="Review status" value={formatEnum(adoption.review_status)} />
               <AdminField label="Processed by" value={getStaffName(adoption.processed_by)} />
               <AdminField label="Adoption fee" value={`${adoption.adoption_fee.toLocaleString()} ₫`} />
-              <AdminField label="Payment" value={formatEnum(adoption.payment_status)} />
+              {canEditWorkflow ? (
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Payment status</p>
+                  <select
+                    value={adoption.payment_status}
+                    onChange={(e) => runAction("payment", { paymentStatus: e.target.value })}
+                    className={adminInputClass()}
+                    disabled={USE_MOCK}
+                  >
+                    {["UNPAID", "PENDING", "PAID", "REFUNDED"].map((s) => (
+                      <option key={s} value={s}>
+                        {formatEnum(s)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <AdminField label="Payment status" value={formatEnum(adoption.payment_status)} />
+              )}
               <AdminField label="Paid at" value={adoption.paid_at ?? "—"} />
             </AdminFieldGrid>
             <AdminField label="Missing info note" value={adoption.missing_info_note || "—"} className="mt-4" />
             <AdminField label="Internal notes" value={adoption.notes || "—"} className="mt-4" />
+
+            {canEditWorkflow ? (
+              <>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <button type="button" onClick={() => runAction("approve")} className="admin-filter-pill-active text-xs">
+                    Approve
+                  </button>
+                  <button type="button" onClick={() => runAction("reject")} className="admin-filter-pill text-xs">
+                    Reject
+                  </button>
+                  <button type="button" onClick={() => runAction("complete")} className="admin-filter-pill text-xs">
+                    Complete
+                  </button>
+                  <button type="button" onClick={() => runAction("cancel")} className="admin-filter-pill text-xs">
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-3">
+                  Workflow buttons call Spring Boot when API mode is on. Schedule meetings/handovers via backend or future forms.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500 mt-4">
+                View only for volunteers. An admin approves applications and updates payment status.
+              </p>
+            )}
           </AdminPanel>
         </div>
       ) : null}
 
       {tab === "meetings" ? (
         <div className="space-y-4">
-          <AdminPanel title="Schedule meeting (preview)">
-            <AdminFieldGrid cols={3}>
-              <AdminField label="Date & time" value="—" />
-              <AdminField label="Location" value="—" />
-              <AdminField label="Staff" value="—" />
-            </AdminFieldGrid>
-          </AdminPanel>
-          {meetings.map((m) => (
-            <AdminPanel key={m.meeting_id} title={`Meeting · ${m.meeting_datetime}`}>
-              <AdminFieldGrid cols={3}>
-                <AdminField label="Staff" value={m.staff_name} />
-                <AdminField label="Location" value={m.meeting_location} />
-                <AdminField label="Status" value={<StatusBadge value={m.status} />} />
-                <AdminField label="Result" value={<StatusBadge value={m.result} />} />
-              </AdminFieldGrid>
-              <AdminField label="Note" value={m.note} className="mt-3" />
-            </AdminPanel>
-          ))}
+          {meetings.length === 0 ? (
+            <p className="text-sm text-slate-500 py-8 text-center">No meetings on record.</p>
+          ) : (
+            meetings.map((m) => (
+              <AdminPanel key={m.meeting_id} title={`Meeting · ${m.meeting_datetime}`}>
+                <AdminFieldGrid cols={3}>
+                  <AdminField label="Staff" value={m.staff_name} />
+                  <AdminField label="Location" value={m.meeting_location} />
+                  <AdminField label="Status" value={<StatusBadge value={m.status} />} />
+                  <AdminField label="Result" value={<StatusBadge value={m.result} />} />
+                </AdminFieldGrid>
+                <AdminField label="Note" value={m.note} className="mt-3" />
+              </AdminPanel>
+            ))
+          )}
         </div>
       ) : null}
 
@@ -173,10 +225,8 @@ export function AdminAdoptionDetailPage() {
                   <AdminField label="Handled by" value={h.handled_by} />
                   <AdminField label="Status" value={<StatusBadge value={h.status} />} />
                   <AdminField label="Adopter confirmed" value={h.adopter_confirmed ? "Yes" : "No"} />
-                  <AdminField label="Completed" value={h.completed_at ?? "—"} />
                 </AdminFieldGrid>
                 <AdminField label="Items given" value={h.items_given} className="mt-3" />
-                <AdminField label="Completion note" value={h.completion_note} className="mt-3" />
               </AdminPanel>
             ))
           )}
@@ -184,9 +234,9 @@ export function AdminAdoptionDetailPage() {
       ) : null}
 
       {tab === "followups" ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {followups.length === 0 ? (
-            <p className="text-sm text-slate-500 py-8 text-center">No follow-ups yet.</p>
+            <p className="text-sm text-slate-500 py-8 text-center">No follow-ups logged.</p>
           ) : (
             followups.map((f) => (
               <AdminPanel key={f.followup_id} title={`Follow-up · ${f.followup_date}`}>

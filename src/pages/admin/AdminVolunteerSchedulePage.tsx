@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
@@ -9,14 +9,26 @@ import {
   mockShifts,
   mockVolunteerSchedules,
 } from "@/data/admin-mock";
+import { loadVolunteerScheduleBundle } from "@/lib/admin/admin-data";
 
 export function AdminVolunteerSchedulePage() {
   const [tab, setTab] = useState("registrations");
+  const [windows, setWindows] = useState(mockScheduleWindows);
+  const [shifts, setShifts] = useState(mockShifts);
   const [schedules, setSchedules] = useState(mockVolunteerSchedules);
   const [windowId, setWindowId] = useState(mockScheduleWindows[0]?.window_id ?? 1);
 
+  useEffect(() => {
+    void loadVolunteerScheduleBundle().then((bundle) => {
+      setWindows(bundle.windows);
+      setShifts(bundle.shifts);
+      setSchedules(bundle.schedules);
+      setWindowId((prev) => prev ?? bundle.windows[0]?.window_id ?? 1);
+    });
+  }, []);
+
   const filtered = schedules.filter((s) => s.window_id === windowId);
-  const selectedWindow = mockScheduleWindows.find((w) => w.window_id === windowId);
+  const selectedWindow = windows.find((w) => w.window_id === windowId);
 
   return (
     <div>
@@ -47,7 +59,7 @@ export function AdminVolunteerSchedulePage() {
                 onChange={(e) => setWindowId(Number(e.target.value))}
                 className={adminInputClass("min-w-[240px]")}
               >
-                {mockScheduleWindows.map((w) => (
+                {windows.map((w) => (
                   <option key={w.window_id} value={w.window_id}>
                     {w.title}
                   </option>
@@ -105,7 +117,7 @@ export function AdminVolunteerSchedulePage() {
 
       {tab === "windows" ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {mockScheduleWindows.map((w) => (
+          {windows.map((w) => (
             <AdminPanel key={w.window_id} title={w.title}>
               <AdminFieldGrid cols={2}>
                 <AdminField label="Week" value={`${w.week_start} → ${w.week_end}`} />
@@ -120,7 +132,7 @@ export function AdminVolunteerSchedulePage() {
 
       {tab === "shifts" ? (
         <div className="grid gap-4 md:grid-cols-3">
-          {mockShifts.map((shift) => (
+          {shifts.map((shift) => (
             <AdminPanel key={shift.shift_id} title={shift.shift_name}>
               <AdminFieldGrid>
                 <AdminField label="Hours" value={`${shift.start_time} – ${shift.end_time}`} />
