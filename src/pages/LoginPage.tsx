@@ -13,22 +13,34 @@ export function LoginPage() {
   const { user, login } = usePublicAuth();
   const from = (location.state as { from?: string } | null)?.from ?? "/account";
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   if (user) {
     return <Navigate to={from} replace />;
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!login(username, password)) {
-      setError("Invalid username or password.");
-      return;
+    setLoading(true);
+
+    try {
+      const loggedUser = await login(email, password);
+
+      if (!loggedUser) {
+        setError("Invalid email or password.");
+        return;
+      }
+
+      navigate(from, { replace: true });
+    } catch {
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
     }
-    navigate(from, { replace: true });
   };
 
   return (
@@ -54,17 +66,20 @@ export function LoginPage() {
                   {error}
                 </p>
               ) : null}
+
               <div>
-                <label className="text-sm font-medium">Username</label>
+                <label className="text-sm font-medium">Email</label>
                 <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="user1"
+                  placeholder="Enter your email"
                   className="mt-1"
-                  autoComplete="username"
+                  autoComplete="email"
                 />
               </div>
+
               <div>
                 <label className="text-sm font-medium">Password</label>
                 <Input
@@ -72,32 +87,37 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   className="mt-1"
                   autoComplete="current-password"
                 />
               </div>
-              <Button type="submit" className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11">
-                Sign in
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11"
+              >
+                {loading ? "Signing in..." : "Sign in"}
               </Button>
+
               <p className="text-xs text-gray-500 text-center leading-relaxed">
                 {USE_MOCK ? (
                   <>
-                    Demo (mock): <code className="text-gray-600">user1 / user123</code>
+                    Demo mock: <code className="text-gray-600">jane@example.com / user123</code>
                   </>
                 ) : (
-                  <>
-                    Use an account you registered on this site, or demo{" "}
-                    <code className="text-gray-600">user1 / user123</code> if still enabled.
-                  </>
+                  <>Use your registered email and password.</>
                 )}
               </p>
+
               <p className="text-center text-sm text-gray-500">
                 No account?{" "}
                 <Link to="/register" className="text-[#f6931d] font-bold hover:underline">
                   Create one
                 </Link>
               </p>
+
               <p className="text-center text-xs text-gray-400">
                 Staff?{" "}
                 <Link to="/admin/login" className="text-[#2c5f51] hover:underline">

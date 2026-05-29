@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { AddToCartToast } from "@/components/public/AddToCartToast";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
 import { useProductDetail } from "@/hooks/useProductCatalog";
-import { addToCart } from "@/lib/public-commerce";
+import { addCartItem } from "@/lib/api/cart-api";
 import { formatVnd } from "@/lib/formatVnd";
 import { ArrowLeft, Check, ShoppingCart } from "lucide-react";
 
@@ -13,18 +13,56 @@ export function ShopProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, refresh } = usePublicAuth();
+
   const productId = Number(id);
   const { product, loading, error } = useProductDetail(productId);
+
   const [qty, setQty] = useState(1);
+  const [localStock, setLocalStock] = useState(0);
   const [added, setAdded] = useState(false);
-  const [toast, setToast] = useState<{ open: boolean; variant: "success" | "error" }>({
+  const [toast, setToast] = useState<{
+    open: boolean;
+    variant: "success" | "error";
+  }>({
     open: false,
     variant: "success",
   });
 
+  useEffect(() => {
+    if (product) {
+      setLocalStock(product.stock_quantity);
+    }
+  }, [product]);
+
   const closeToast = useCallback(() => {
     setToast((current) => ({ ...current, open: false }));
   }, []);
+
+  const handleAdd = async () => {
+    if (!product) return;
+
+    if (!user) {
+      navigate("/login", { state: { from: `/shop/${product.product_id}` } });
+      return;
+    }
+
+    if (localStock <= 0) return;
+
+    try {
+      await addCartItem(user.userId, product.product_id, qty);
+
+      setLocalStock((prev) => Math.max(0, prev - qty));
+      setQty(1);
+
+      refresh();
+      setAdded(true);
+      setToast({ open: true, variant: "success" });
+      window.setTimeout(() => setAdded(false), 2000);
+    } catch (e) {
+      console.error(e);
+      setToast({ open: true, variant: "error" });
+    }
+  };
 
   if (loading) {
     return (
@@ -38,7 +76,9 @@ export function ShopProductDetailPage() {
     return (
       <div className="public-container py-16 text-center sm:py-24">
         <h1 className="text-2xl font-bold text-[#2c5f51]">Product not found</h1>
+
         {error ? <p className="mt-2 text-sm soft-subtext">{error}</p> : null}
+
         <Button asChild className="mt-6 bg-[#f6931d]">
           <Link to="/shop">Back to shop</Link>
         </Button>
@@ -46,24 +86,13 @@ export function ShopProductDetailPage() {
     );
   }
 
-  const handleAdd = async () => {
-    if (!user) {
-      navigate("/login", { state: { from: `/shop/${product.product_id}` } });
-      return;
-    }
-    if (await addToCart(user.userId, product.product_id, qty)) {
-      refresh();
-      setAdded(true);
-      setToast({ open: true, variant: "success" });
-      window.setTimeout(() => setAdded(false), 2000);
-      return;
-    }
-    setToast({ open: true, variant: "error" });
-  };
-
   return (
     <>
-      <PageHero title={product.product_name} subtitle="Fundraising merchandise" imageUrl={product.image_url} />
+      <PageHero
+        title={product.product_name}
+        subtitle="Fundraising merchandise"
+        imageUrl={product.image_url}
+      />
 
       <section className="public-section bg-white">
         <div className="public-container">
@@ -80,19 +109,26 @@ export function ShopProductDetailPage() {
               alt={product.product_name}
               className="max-h-[480px] w-full rounded-3xl object-cover shadow-xl"
             />
+
             <div className="space-y-6">
-              <p className="text-2xl font-bold text-[#2c5f51] sm:text-3xl">{formatVnd(product.price)}</p>
+              <p className="text-2xl font-bold text-[#2c5f51] sm:text-3xl">
+                {formatVnd(product.price)}
+              </p>
+
               <p className="leading-relaxed text-gray-600">{product.description}</p>
-              <p className="text-sm text-gray-500">{product.stock_quantity} in stock</p>
+
+              <p className="text-sm text-gray-500">{localStock} in stock</p>
 
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700">Quantity</label>
+
                 <select
                   value={qty}
                   onChange={(e) => setQty(Number(e.target.value))}
+                  disabled={localStock <= 0}
                   className="h-10 rounded-xl border px-3 text-sm"
                 >
-                  {Array.from({ length: Math.min(5, product.stock_quantity) }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: Math.min(5, localStock) }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>
@@ -102,9 +138,12 @@ export function ShopProductDetailPage() {
 
               <Button
                 onClick={handleAdd}
+                disabled={localStock <= 0}
                 className="h-12 w-full rounded-full bg-[#f6931d] px-8 font-bold hover:bg-orange-600 sm:w-auto"
               >
-                {added ? (
+                {localStock <= 0 ? (
+                  <>Out of stock</>
+                ) : added ? (
                   <>
                     <Check size={18} className="mr-2" /> Added to cart
                   </>
@@ -116,7 +155,9 @@ export function ShopProductDetailPage() {
               </Button>
 
               {!user ? (
-                <p className="text-xs text-gray-400">Sign in required to add items to your cart.</p>
+                <p className="text-xs text-gray-400">
+                  Sign in required to add items to your cart.
+                </p>
               ) : null}
             </div>
           </div>

@@ -37,6 +37,12 @@ let catalogLoadPromise: Promise<PublicProduct[]> | null = null;
 let apiCampaignsCache: DonationCampaign[] | null = null;
 let apiCartCache = new Map<number, ApiCartLine[]>();
 let apiOrdersCache = new Map<number, PublicOrder[]>();
+let apiItemDonationsCache = new Map<number, PublicItemDonation[]>();
+
+export function clearProductCatalogCache() {
+  apiProductCatalog = null;
+  catalogLoadPromise = null;
+}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -52,12 +58,14 @@ function writeJson<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-export async function loadProductCatalog(): Promise<PublicProduct[]> {
+export async function loadProductCatalog(forceRefresh = false): Promise<PublicProduct[]> {
   if (USE_MOCK) {
     apiProductCatalog = getActiveProducts();
     return apiProductCatalog;
   }
-  if (apiProductCatalog) return apiProductCatalog;
+
+  if (!forceRefresh && apiProductCatalog) return apiProductCatalog;
+
   if (!catalogLoadPromise) {
     catalogLoadPromise = fetchActiveProducts()
       .then((list) => {
@@ -68,18 +76,46 @@ export async function loadProductCatalog(): Promise<PublicProduct[]> {
         catalogLoadPromise = null;
       });
   }
+
   return catalogLoadPromise;
 }
 
-export async function loadProductById(productId: number): Promise<PublicProduct | undefined> {
+export async function loadProductById(
+  productId: number,
+  forceRefresh = false
+): Promise<PublicProduct | undefined> {
   if (USE_MOCK) return getProductById(productId);
+
+  if (forceRefresh) {
+    try {
+      const product = await fetchProductById(productId);
+
+      if (apiProductCatalog) {
+        const exists = apiProductCatalog.some((p) => p.product_id === productId);
+        apiProductCatalog = exists
+          ? apiProductCatalog.map((p) => (p.product_id === productId ? product : p))
+          : [...apiProductCatalog, product];
+      } else {
+        apiProductCatalog = [product];
+      }
+
+      return product;
+    } catch {
+      return undefined;
+    }
+  }
+
   await loadProductCatalog();
+
   const cached = apiProductCatalog?.find((p) => p.product_id === productId);
   if (cached) return cached;
+
   try {
     const product = await fetchProductById(productId);
+
     if (apiProductCatalog) apiProductCatalog.push(product);
     else apiProductCatalog = [product];
+
     return product;
   } catch {
     return undefined;
@@ -95,12 +131,15 @@ export function getProduct(productId: number): PublicProduct | undefined {
   if (!USE_MOCK && apiProductCatalog) {
     return apiProductCatalog.find((p) => p.product_id === productId);
   }
+
   return getProductById(productId);
 }
 
 export function getCampaigns(): DonationCampaign[] {
   if (!USE_MOCK && apiCampaignsCache) return apiCampaignsCache;
+
   const extra = readJson<Record<string, number>>(CAMPAIGN_RAISED_KEY, {});
+
   return mockCampaigns.map((c) => ({
     ...c,
     raised_amount: c.raised_amount + (extra[String(c.campaign_id)] ?? 0),
@@ -109,7 +148,9 @@ export function getCampaigns(): DonationCampaign[] {
 
 export async function loadCampaigns(): Promise<DonationCampaign[]> {
   if (USE_MOCK) return getCampaigns();
+
   if (apiCampaignsCache) return apiCampaignsCache;
+
   try {
     const list = await fetchActiveCampaigns();
     apiCampaignsCache = list.length > 0 ? list : getCampaigns();
@@ -141,6 +182,7 @@ export async function loadUserCart(userId: number): Promise<ApiCartLine[]> {
       price: getProduct(l.product_id)?.price ?? 0,
     }));
   }
+
   try {
     const lines = await fetchCartByUser(userId);
     apiCartCache.set(userId, lines);
@@ -152,6 +194,7 @@ export async function loadUserCart(userId: number): Promise<ApiCartLine[]> {
 
 export function getCart(userId: number): PublicCartLine[] {
   const api = apiCartCache.get(userId);
+
   if (!USE_MOCK && api) {
     return api.map((l) => ({
       cart_id: l.cart_id,
@@ -159,6 +202,7 @@ export function getCart(userId: number): PublicCartLine[] {
       quantity: l.quantity,
     }));
   }
+
   return mockCartLines(userId);
 }
 
@@ -173,6 +217,7 @@ export async function loadCartItemCount(userId: number): Promise<number> {
 
 export function getCartDetails(userId: number) {
   const api = apiCartCache.get(userId);
+
   if (!USE_MOCK && api) {
     return api.map((l) => ({
       cart_id: l.cart_id,
@@ -183,18 +228,21 @@ export function getCartDetails(userId: number) {
         product_name: l.product_name,
         description: "",
         price: l.price,
-        stock_quantity: 999,
+        stock_quantity: getProduct(l.product_id)?.stock_quantity ?? 999,
         image_url: getProduct(l.product_id)?.image_url ?? "",
         is_active: true,
       } as PublicProduct,
       lineTotal: l.price * l.quantity,
     }));
   }
+
   const lines = mockCartLines(userId);
+
   return lines
     .map((line) => {
       const product = getProduct(line.product_id);
       if (!product) return null;
+
       return {
         ...line,
         product,
@@ -222,17 +270,23 @@ export async function addToCart(
   if (USE_MOCK) {
     const product = getProduct(productId);
     if (!product) return false;
+
     const cart = mockCartLines(userId);
     const existing = cart.find((l) => l.product_id === productId);
     const newQty = (existing?.quantity ?? 0) + quantity;
+
     if (newQty > product.stock_quantity) return false;
+
     if (existing) existing.quantity = newQty;
     else cart.push({ product_id: productId, quantity });
+
     writeJson(cartKey(userId), cart);
     return true;
   }
+
   try {
     await addCartItem(userId, productId, quantity);
+    clearProductCatalogCache();
     await loadUserCart(userId);
     return true;
   } catch {
@@ -248,20 +302,33 @@ export async function updateCartQuantity(
   if (USE_MOCK) {
     const product = getProduct(productId);
     if (!product) return false;
+
     let cart = mockCartLines(userId);
-    if (quantity <= 0) cart = cart.filter((l) => l.product_id !== productId);
-    else if (quantity > product.stock_quantity) return false;
-    else cart = cart.map((l) => (l.product_id === productId ? { ...l, quantity } : l));
+
+    if (quantity <= 0) {
+      cart = cart.filter((l) => l.product_id !== productId);
+    } else if (quantity > product.stock_quantity) {
+      return false;
+    } else {
+      cart = cart.map((l) => (l.product_id === productId ? { ...l, quantity } : l));
+    }
+
     writeJson(cartKey(userId), cart);
     return true;
   }
+
   const lines = apiCartCache.get(userId) ?? (await loadUserCart(userId));
   const line = lines.find((l) => l.product_id === productId);
+
   if (!line) return false;
+
   try {
     if (quantity <= 0) await removeCartItem(line.cart_id);
     else await updateCartItemQuantity(line.cart_id, quantity);
+
+    clearProductCatalogCache();
     await loadUserCart(userId);
+
     return true;
   } catch {
     return false;
@@ -277,9 +344,11 @@ export async function clearCart(userId: number) {
     writeJson(cartKey(userId), []);
     return;
   }
+
   try {
     await clearUserCart(userId);
     apiCartCache.set(userId, []);
+    clearProductCatalogCache();
   } catch {
     writeJson(cartKey(userId), []);
   }
@@ -291,7 +360,9 @@ function allOrders(): PublicOrder[] {
 
 export function getUserOrders(userId: number): PublicOrder[] {
   const cached = apiOrdersCache.get(userId);
+
   if (!USE_MOCK && cached) return cached;
+
   return allOrders()
     .filter((o) => o.user_id === userId)
     .sort((a, b) => b.order_id - a.order_id);
@@ -299,6 +370,7 @@ export function getUserOrders(userId: number): PublicOrder[] {
 
 export async function loadUserOrders(userId: number): Promise<PublicOrder[]> {
   if (USE_MOCK) return getUserOrders(userId);
+
   try {
     const list = await fetchOrdersByUser(userId);
     apiOrdersCache.set(userId, list);
@@ -312,8 +384,12 @@ export function getOrderById(userId: number, orderId: number): PublicOrder | und
   return getUserOrders(userId).find((o) => o.order_id === orderId);
 }
 
-export async function loadOrderById(userId: number, orderId: number): Promise<PublicOrder | undefined> {
+export async function loadOrderById(
+  userId: number,
+  orderId: number
+): Promise<PublicOrder | undefined> {
   if (USE_MOCK) return getOrderById(userId, orderId);
+
   try {
     const order = await fetchOrderById(orderId);
     if (order.user_id !== userId) return undefined;
@@ -335,8 +411,10 @@ export async function checkout(
   if (USE_MOCK) {
     const details = getCartDetails(userId);
     if (details.length === 0) return null;
+
     const subtotal = details.reduce((s, l) => s + l.lineTotal, 0);
     const orderId = Date.now();
+
     const order: PublicOrder = {
       order_id: orderId,
       user_id: userId,
@@ -358,12 +436,16 @@ export async function checkout(
       note: input.note,
       created_at: new Date().toISOString().slice(0, 16).replace("T", " "),
     };
+
     const orders = readJson<PublicOrder[]>(ORDERS_KEY, []);
     orders.unshift(order);
     writeJson(ORDERS_KEY, orders);
+
     await clearCart(userId);
+
     return order;
   }
+
   try {
     const order = await checkoutFromCart({
       userId,
@@ -373,8 +455,11 @@ export async function checkout(
       receiverPhone: input.receiver_phone,
       note: input.note,
     });
+
     apiOrdersCache.set(userId, [order, ...(apiOrdersCache.get(userId) ?? [])]);
     apiCartCache.set(userId, []);
+    clearProductCatalogCache();
+
     return order;
   } catch {
     return null;
@@ -388,6 +473,7 @@ export async function donateMoney(input: {
   amount: number;
 }): Promise<PublicMoneyDonation | null> {
   const campaign = getCampaign(input.campaign_id);
+
   if (!campaign || input.amount <= 0) return null;
 
   if (USE_MOCK) {
@@ -402,12 +488,17 @@ export async function donateMoney(input: {
       payment_status: "PENDING",
       created_at: new Date().toISOString().slice(0, 16).replace("T", " "),
     };
+
     const list = readJson<PublicMoneyDonation[]>(MONEY_DONATIONS_KEY, []);
     list.unshift(donation);
     writeJson(MONEY_DONATIONS_KEY, list);
+
     const extra = readJson<Record<string, number>>(CAMPAIGN_RAISED_KEY, {});
-    extra[String(input.campaign_id)] = (extra[String(input.campaign_id)] ?? 0) + input.amount;
+    extra[String(input.campaign_id)] =
+      (extra[String(input.campaign_id)] ?? 0) + input.amount;
+
     writeJson(CAMPAIGN_RAISED_KEY, extra);
+
     return donation;
   }
 
@@ -420,6 +511,7 @@ export async function donateMoney(input: {
       donationType: "MONEY",
       paymentStatus: "PENDING",
     });
+
     return {
       ...d,
       campaign_title: campaign.title,
@@ -449,11 +541,14 @@ export async function donateItem(input: {
       status: "PENDING",
       created_at: new Date().toISOString().slice(0, 16).replace("T", " "),
     };
+
     const list = readJson<PublicItemDonation[]>(ITEM_DONATIONS_KEY, []);
     list.unshift(donation);
     writeJson(ITEM_DONATIONS_KEY, list);
+
     return donation;
   }
+
   return createItemDonation({
     userId: input.user_id,
     donorNameManual: input.donor_name,
@@ -465,14 +560,16 @@ export async function donateItem(input: {
 }
 
 export function getUserMoneyDonations(userId: number): PublicMoneyDonation[] {
-  return readJson<PublicMoneyDonation[]>(MONEY_DONATIONS_KEY, []).filter((d) => d.user_id === userId);
+  return readJson<PublicMoneyDonation[]>(MONEY_DONATIONS_KEY, []).filter(
+    (d) => d.user_id === userId
+  );
 }
 
 export function getUserItemDonations(userId: number): PublicItemDonation[] {
-  return readJson<PublicItemDonation[]>(ITEM_DONATIONS_KEY, []).filter((d) => d.user_id === userId);
+  return readJson<PublicItemDonation[]>(ITEM_DONATIONS_KEY, []).filter(
+    (d) => d.user_id === userId
+  );
 }
-
-let apiItemDonationsCache = new Map<number, PublicItemDonation[]>();
 
 export async function loadUserDonations(userId: number): Promise<{
   money: PublicMoneyDonation[];
@@ -484,14 +581,20 @@ export async function loadUserDonations(userId: number): Promise<{
       items: getUserItemDonations(userId),
     };
   }
+
   try {
     const [money, items] = await Promise.all([
       fetchDonationsByUser(userId),
       fetchItemDonationsByUser(userId),
     ]);
+
     apiItemDonationsCache.set(userId, items);
+
     return { money, items };
   } catch {
-    return { money: getUserMoneyDonations(userId), items: getUserItemDonations(userId) };
+    return {
+      money: getUserMoneyDonations(userId),
+      items: getUserItemDonations(userId),
+    };
   }
 }

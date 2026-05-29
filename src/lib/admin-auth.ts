@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/api-client";
+
 export type StaffRole = "ADMIN" | "VOLUNTEER";
 
 export interface AdminUser {
@@ -8,30 +10,17 @@ export interface AdminUser {
   role: StaffRole;
 }
 
-const SESSION_KEY = "pawshope_admin_session";
-
-const DEMO_ACCOUNTS: Record<string, { password: string; user: AdminUser }> = {
-  admin: {
-    password: "admin123",
-    user: {
-      userId: 1,
-      username: "admin",
-      fullName: "System Admin",
-      email: "admin@pawshope.net",
-      role: "ADMIN",
-    },
-  },
-  volunteer1: {
-    password: "volunteer123",
-    user: {
-      userId: 2,
-      username: "volunteer1",
-      fullName: "Lan Nguyen",
-      email: "volunteer1@pawshope.net",
-      role: "VOLUNTEER",
-    },
-  },
+type LoginResDto = {
+  token: string;
+  userId: number;
+  username: string;
+  fullName: string;
+  email: string;
+  role: string;
 };
+
+const SESSION_KEY = "pawshope_admin_session";
+const ACCESS_TOKEN_KEY = "accessToken";
 
 export function canAccessAdmin(role?: string) {
   const r = role?.toUpperCase();
@@ -42,11 +31,30 @@ export function isAdmin(role?: string) {
   return role?.toUpperCase() === "ADMIN";
 }
 
-export function loginAdmin(username: string, password: string): AdminUser | null {
-  const account = DEMO_ACCOUNTS[username.trim().toLowerCase()];
-  if (!account || account.password !== password) return null;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(account.user));
-  return account.user;
+export async function loginAdmin(email: string, password: string): Promise<AdminUser | null> {
+  try {
+    const res = await apiFetch<LoginResDto>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!canAccessAdmin(res.role)) return null;
+
+    localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+
+    const user: AdminUser = {
+      userId: res.userId,
+      username: res.username,
+      fullName: res.fullName,
+      email: res.email,
+      role: res.role as StaffRole,
+    };
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 export function getStoredAdmin(): AdminUser | null {
@@ -61,4 +69,5 @@ export function getStoredAdmin(): AdminUser | null {
 
 export function clearAdminSession() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 }

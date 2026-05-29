@@ -142,19 +142,22 @@ export function getCampaignTitle(campaignId: number) {
 export async function loadUsers(): Promise<UserRow[]> {
   if (USE_MOCK) return mockUsers;
   if (cache.users) return cache.users;
+
   try {
-    cache.users = (await fetchUsersRaw()).map((d) => ({
+    cache.users = (await fetchUsersRaw()).map((d: any) => ({
       user_id: d.userId,
       username: d.username,
-      full_name: d.full_name,
+      full_name: d.fullName ?? d.username ?? `User #${d.userId}`,
       email: d.email,
       phone: d.phone ?? "",
-      role: "USER",
+      role: d.role ?? "USER",
       status: d.status === false ? 0 : 1,
-      created_at: "",
+      created_at: d.createdAt ?? "",
     }));
+
     return cache.users;
-  } catch {
+  } catch (e) {
+    console.error("loadUsers failed:", e);
     return mockUsers;
   }
 }
@@ -346,16 +349,31 @@ export async function loadAdoptions() {
 export async function loadOrders() {
   if (USE_MOCK) return mockOrders;
   if (cache.orders) return cache.orders;
-  await loadUsers();
-  const raw = await apiFetch<OrderResDto[]>("/orders");
-  cache.orders = raw.map((d) => {
-    const user = userLookup(d.userId);
-    return mapAdminOrder(
-      d,
-      user ? { name: user.name, email: user.email } : undefined
-    );
-  });
-  return cache.orders;
+
+  try {
+    await loadUsers();
+
+    const raw = await apiFetch<OrderResDto[]>("/orders");
+
+    cache.orders = raw.map((d) => {
+      const user = userLookup(d.userId);
+
+      return mapAdminOrder(
+        d,
+        user
+          ? {
+              name: user.name,
+              email: user.email,
+            }
+          : undefined
+      );
+    });
+
+    return cache.orders;
+  } catch (e) {
+    console.error("loadOrders failed:", e);
+    return mockOrders;
+  }
 }
 
 export async function loadOrderItems(orderId: number) {

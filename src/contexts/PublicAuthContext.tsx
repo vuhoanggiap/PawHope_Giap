@@ -22,7 +22,7 @@ interface PublicAuthContextValue {
   user: PublicUser | null;
   unreadCount: number;
   cartCount: number;
-  login: (username: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<PublicUser | null>;
   register: (input: {
     username: string;
     password: string;
@@ -43,17 +43,24 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
   const [cartCount, setCartCount] = useState(0);
 
   const refreshCounts = useCallback(async (u: PublicUser | null) => {
-    if (!u) {
+    if (!u || !u.userId) {
       setUnreadCount(0);
       setCartCount(0);
       return;
     }
-    const [unread, cart] = await Promise.all([
-      loadUnreadNotificationCount(u.userId),
-      loadCartItemCount(u.userId),
-    ]);
-    setUnreadCount(unread);
-    setCartCount(cart);
+
+    try {
+      const [unread, cart] = await Promise.all([
+        loadUnreadNotificationCount(u.userId),
+        loadCartItemCount(u.userId),
+      ]);
+
+      setUnreadCount(unread);
+      setCartCount(cart);
+    } catch {
+      setUnreadCount(0);
+      setCartCount(0);
+    }
   }, []);
 
   const refresh = useCallback(() => {
@@ -72,29 +79,42 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
       unreadCount,
       cartCount,
       refresh,
-      login: (username, password) => {
-        const u = loginPublic(username, password);
-        if (!u) return false;
+
+      login: async (email, password) => {
+        const u = await loginPublic(email, password);
+
+        if (!u) return null;
+
         setUser(u);
         void refreshCounts(u);
-        return true;
+
+        return u;
       },
+
       register: async (input) => {
         const u = await registerPublic(input);
+
         if (!u) return false;
+
         setUser(u);
         void refreshCounts(u);
+
         return true;
       },
+
       logout: () => {
         clearPublicSession();
         setUser(null);
         setUnreadCount(0);
         setCartCount(0);
       },
+
       updateProfile: (patch) => {
         void updatePublicProfile(patch).then((u) => {
-          if (u) setUser(u);
+          if (u) {
+            setUser(u);
+            void refreshCounts(u);
+          }
         });
       },
     }),
@@ -106,6 +126,10 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
 
 export function usePublicAuth() {
   const ctx = useContext(PublicAuthContext);
-  if (!ctx) throw new Error("usePublicAuth must be used within PublicAuthProvider");
+
+  if (!ctx) {
+    throw new Error("usePublicAuth must be used within PublicAuthProvider");
+  }
+
   return ctx;
 }

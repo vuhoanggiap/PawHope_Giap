@@ -22,14 +22,21 @@ export function useProductCatalog() {
       setError(null);
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const list = await loadProductCatalog();
+      const list = await loadProductCatalog(true);
       setProducts(list);
     } catch (e) {
       const message =
-        e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Failed to load products";
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Failed to load products";
+
       setError(message);
       setProducts(getProducts());
     } finally {
@@ -51,12 +58,13 @@ export function useProductDetail(productId: number) {
   const [loading, setLoading] = useState(!USE_MOCK && productId > 0);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     if (!productId || Number.isNaN(productId)) {
       setProduct(undefined);
       setLoading(false);
       return;
     }
+
     if (USE_MOCK) {
       setProduct(getProduct(productId));
       setLoading(false);
@@ -64,29 +72,30 @@ export function useProductDetail(productId: number) {
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
     setError(null);
 
-    void loadProductById(productId)
-      .then((p) => {
-        if (!cancelled) setProduct(p);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        const message =
-          e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Failed to load product";
-        setError(message);
-        setProduct(undefined);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    try {
+      const p = await loadProductById(productId, true);
+      setProduct(p);
+    } catch (e) {
+      const message =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Failed to load product";
 
-    return () => {
-      cancelled = true;
-    };
+      setError(message);
+      setProduct(undefined);
+    } finally {
+      setLoading(false);
+    }
   }, [productId]);
 
-  return { product, loading, error };
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { product, loading, error, reload };
 }

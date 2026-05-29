@@ -1,7 +1,7 @@
-import { USE_MOCK } from "@/lib/api-client";
+import { apiFetch, USE_MOCK } from "@/lib/api-client";
 import { registerUser, updateUser } from "@/lib/api/users-api";
 
-export type PublicRole = "USER";
+export type PublicRole = "USER" | "VOLUNTEER" | "ADMIN";
 
 export interface PublicUser {
   userId: number;
@@ -12,12 +12,22 @@ export interface PublicUser {
   role: PublicRole;
 }
 
+type LoginResDto = {
+  token: string;
+  userId?: number;
+  username?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  role?: PublicRole;
+};
+
 const SESSION_KEY = "pawshope_public_session";
 const USERS_KEY = "pawshope_public_users";
-const API_CREDENTIALS_KEY = "pawshope_api_credentials";
+const ACCESS_TOKEN_KEY = "accessToken";
 
 const DEMO_ACCOUNTS: Record<string, { password: string; user: PublicUser }> = {
-  user1: {
+  "jane@example.com": {
     password: "user123",
     user: {
       userId: 101,
@@ -32,18 +42,6 @@ const DEMO_ACCOUNTS: Record<string, { password: string; user: PublicUser }> = {
 
 interface StoredUser extends PublicUser {
   password: string;
-}
-
-type ApiCredential = { password: string; user: PublicUser };
-
-function loadApiCredentials(): Record<string, ApiCredential> {
-  return readJson<Record<string, ApiCredential>>(API_CREDENTIALS_KEY, {});
-}
-
-function saveApiCredential(username: string, password: string, user: PublicUser) {
-  const all = loadApiCredentials();
-  all[username.toLowerCase()] = { password, user };
-  writeJson(API_CREDENTIALS_KEY, all);
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -68,26 +66,50 @@ function saveRegisteredUsers(users: StoredUser[]) {
   writeJson(USERS_KEY, users);
 }
 
-export function loginPublic(username: string, password: string): PublicUser | null {
-  const key = username.trim().toLowerCase();
+export async function loginPublic(email: string, password: string): Promise<PublicUser | null> {
+  const key = email.trim().toLowerCase();
+
+  if (!USE_MOCK) {
+    try {
+      const res = await apiFetch<LoginResDto>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: key,
+          password,
+        }),
+      });
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, res.token);
+
+      const user: PublicUser = {
+        userId: res.userId ?? 0,
+        username: res.username ?? key.split("@")[0],
+        fullName: res.fullName ?? res.username ?? key.split("@")[0],
+        email: res.email ?? key,
+        phone: res.phone,
+        role: res.role ?? "USER",
+      };
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      return user;
+    } catch {
+      return null;
+    }
+  }
+
   const demo = DEMO_ACCOUNTS[key];
   if (demo && demo.password === password) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(demo.user));
     return demo.user;
   }
-  if (!USE_MOCK) {
-    const apiUser = loadApiCredentials()[key];
-    if (apiUser && apiUser.password === password) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(apiUser.user));
-      return apiUser.user;
-    }
-  }
-  const registered = loadRegisteredUsers().find((u) => u.username.toLowerCase() === key);
+
+  const registered = loadRegisteredUsers().find((u) => u.email.toLowerCase() === key);
   if (registered && registered.password === password) {
     const { password: _, ...user } = registered;
     localStorage.setItem(SESSION_KEY, JSON.stringify(user));
     return user;
   }
+
   return null;
 }
 
@@ -99,20 +121,20 @@ export async function registerPublic(input: {
   phone?: string;
 }): Promise<PublicUser | null> {
   const username = input.username.trim().toLowerCase();
+  const email = input.email.trim().toLowerCase();
+
   if (!username || input.password.length < 6) return null;
-  if (DEMO_ACCOUNTS[username]) return null;
 
   if (!USE_MOCK) {
-    if (username.length < 5) return null;
     try {
       const user = await registerUser({
         username,
         passwordHash: input.password,
         fullName: input.fullName.trim(),
-        email: input.email.trim(),
+        email,
         phone: input.phone?.trim(),
       });
-      saveApiCredential(username, input.password, user);
+
       localStorage.setItem(SESSION_KEY, JSON.stringify(user));
       return user;
     } catch {
@@ -121,20 +143,24 @@ export async function registerPublic(input: {
   }
 
   const users = loadRegisteredUsers();
-  if (users.some((u) => u.username.toLowerCase() === username || u.email === input.email.trim())) {
+
+  if (users.some((u) => u.username.toLowerCase() === username || u.email.toLowerCase() === email)) {
     return null;
   }
+
   const user: StoredUser = {
     userId: Date.now(),
     username,
     fullName: input.fullName.trim(),
-    email: input.email.trim(),
+    email,
     phone: input.phone?.trim(),
     role: "USER",
     password: input.password,
   };
+
   users.push(user);
   saveRegisteredUsers(users);
+
   const { password: _, ...session } = user;
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
@@ -155,6 +181,7 @@ export async function updatePublicProfile(
 ): Promise<PublicUser | null> {
   const current = getStoredPublicUser();
   if (!current) return null;
+
   const updated = { ...current, ...patch };
 
   if (!USE_MOCK) {
@@ -165,23 +192,28 @@ export async function updatePublicProfile(
         email: updated.email,
         phone: updated.phone,
       });
+
       localStorage.setItem(SESSION_KEY, JSON.stringify(fromApi));
       return fromApi;
     } catch {
-      /* local fallback */
+      // local fallback
     }
   }
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+
   const users = loadRegisteredUsers();
   const idx = users.findIndex((u) => u.userId === current.userId);
+
   if (idx >= 0) {
     users[idx] = { ...users[idx], ...patch };
     saveRegisteredUsers(users);
   }
+
   return updated;
 }
 
 export function clearPublicSession() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 }

@@ -2,14 +2,19 @@ import { Link } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
-import { removeFromCart, SHIPPING_FEE, updateCartQuantity } from "@/lib/public-commerce";
+import { SHIPPING_FEE } from "@/lib/public-commerce";
 import { useCart } from "@/hooks/useCart";
 import { formatVnd } from "@/lib/formatVnd";
 import { Minus, Plus, Trash2 } from "lucide-react";
+import {
+  removeCartItem,
+  updateCartItemQuantity,
+} from "@/lib/api/cart-api";
 
 export function CartPage() {
   const { user, refresh } = usePublicAuth();
-  const { lines, subtotal, loading, reload } = useCart(user?.userId);
+  const { lines, subtotal, loading, error, reload } = useCart(user?.userId);
+
   if (!user) return null;
 
   const onCartChange = () => {
@@ -27,7 +32,13 @@ export function CartPage() {
       <section className="public-section soft-section-warm min-h-[50vh]">
         <div className="public-container-narrow">
           {loading ? (
-            <div className="soft-card p-12 text-center soft-subtext">Loading cart…</div>
+            <div className="soft-card p-12 text-center soft-subtext">
+              Loading cart…
+            </div>
+          ) : error ? (
+            <div className="soft-card p-12 text-center text-red-500">
+              {error}
+            </div>
           ) : lines.length === 0 ? (
             <div className="soft-card p-12 text-center space-y-4">
               <p className="soft-subtext">Your cart is empty.</p>
@@ -39,49 +50,62 @@ export function CartPage() {
             <div className="space-y-6">
               <div className="soft-card divide-y divide-[#2c5f51]/[0.06]">
                 {lines.map((line) => (
-                  <div key={line.product_id} className="public-cart-row">
-                    <img
-                      src={line.product.image_url}
-                      alt=""
-                      className="w-20 h-20 rounded-xl object-cover shrink-0"
-                    />
+                  <div key={line.cart_id} className="public-cart-row">
+                    <div className="w-20 h-20 rounded-xl bg-white border flex items-center justify-center shrink-0 text-2xl">
+                      🛒
+                    </div>
+
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/shop/${line.product_id}`}
                         className="font-semibold text-[#2c5f51] hover:text-[#f6931d]"
                       >
-                        {line.product.product_name}
+                        {line.product_name}
                       </Link>
-                      <p className="text-sm soft-subtext mt-1">{formatVnd(line.product.price)} each</p>
+
+                      <p className="text-sm soft-subtext mt-1">
+                        {formatVnd(line.price)} each
+                      </p>
+
                       <div className="flex items-center gap-2 mt-3">
                         <button
                           type="button"
-                          className="p-1.5 rounded-lg border hover:bg-white"
+                          className="p-1.5 rounded-lg border hover:bg-white disabled:opacity-50"
+                          disabled={line.quantity <= 1}
                           onClick={() => {
-                            void updateCartQuantity(user.userId, line.product_id, line.quantity - 1).then(
-                              onCartChange
-                            );
+                            if (line.quantity <= 1) return;
+
+                            void updateCartItemQuantity(
+                              line.cart_id,
+                              line.quantity - 1
+                            ).then(onCartChange);
                           }}
                         >
                           <Minus size={14} />
                         </button>
-                        <span className="w-8 text-center text-sm font-medium">{line.quantity}</span>
+
+                        <span className="w-8 text-center text-sm font-medium">
+                          {line.quantity}
+                        </span>
+
                         <button
                           type="button"
                           className="p-1.5 rounded-lg border hover:bg-white"
                           onClick={() => {
-                            void updateCartQuantity(user.userId, line.product_id, line.quantity + 1).then(
-                              onCartChange
-                            );
+                            void updateCartItemQuantity(
+                              line.cart_id,
+                              line.quantity + 1
+                            ).then(onCartChange);
                           }}
                         >
                           <Plus size={14} />
                         </button>
+
                         <button
                           type="button"
                           className="ml-auto p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
                           onClick={() => {
-                            void removeFromCart(user.userId, line.product_id).then(onCartChange);
+                            void removeCartItem(line.cart_id).then(onCartChange);
                           }}
                           aria-label="Remove"
                         >
@@ -89,8 +113,9 @@ export function CartPage() {
                         </button>
                       </div>
                     </div>
+
                     <p className="shrink-0 font-semibold text-[#3d6b5c] sm:ml-auto sm:text-right">
-                      {formatVnd(line.lineTotal)}
+                      {formatVnd(line.price * line.quantity)}
                     </p>
                   </div>
                 ))}
@@ -101,15 +126,21 @@ export function CartPage() {
                   <span>Subtotal</span>
                   <span>{formatVnd(subtotal)}</span>
                 </div>
+
                 <div className="flex justify-between soft-subtext">
                   <span>Shipping</span>
                   <span>{formatVnd(SHIPPING_FEE)}</span>
                 </div>
+
                 <div className="flex justify-between font-bold text-[#2c5f51] text-base pt-2 border-t">
                   <span>Total</span>
                   <span>{formatVnd(subtotal + SHIPPING_FEE)}</span>
                 </div>
-                <Button asChild className="w-full mt-4 rounded-full bg-[#f6931d] hover:bg-orange-600 h-12 font-bold">
+
+                <Button
+                  asChild
+                  className="w-full mt-4 rounded-full bg-[#f6931d] hover:bg-orange-600 h-12 font-bold"
+                >
                   <Link to="/checkout">Proceed to checkout</Link>
                 </Button>
               </div>

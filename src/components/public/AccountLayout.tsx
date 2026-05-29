@@ -36,8 +36,8 @@ export function RequirePublicAuth() {
   return <Outlet />;
 }
 
-function userInitials(name: string) {
-  return name
+function userInitials(name?: string, email?: string) {
+  return (name || email || "User")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -55,7 +55,7 @@ export function AccountLayout() {
           <div className="min-w-0">
             <p className="soft-label mb-1">My account</p>
             <h1 className="soft-heading-lg text-xl sm:text-2xl md:text-3xl">
-              Hello, {user?.fullName.split(" ")[0]}
+              Hello, {user?.fullName || user?.email || "User"}
             </h1>
             <p className="soft-subtext mt-1 text-sm">
               Your hub for adoptions, shop orders, donations, rescue reports, and alerts.
@@ -75,15 +75,19 @@ export function AccountLayout() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2c5f51] to-[#3d6b5c] text-lg font-bold text-white shadow-md shadow-[#2c5f51]/20">
-                  {userInitials(user.fullName)}
+                  {userInitials(user.fullName, user.email)}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-[#2c5f51]">{user.fullName}</p>
-                  <p className="soft-subtext truncate text-sm">@{user.username}</p>
+                  <p className="truncate font-semibold text-[#2c5f51]">
+                    {user.fullName || user.email || "User"}
+                  </p>
+                  <p className="soft-subtext truncate text-sm">
+                    @{user.username || "user"}
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#5a6b60]">
                     <span className="inline-flex items-center gap-1">
                       <Mail size={12} className="shrink-0 text-[#a8b8ae]" />
-                      {user.email}
+                      {user.email || "No email"}
                     </span>
                     {user.phone ? (
                       <span className="inline-flex items-center gap-1">
