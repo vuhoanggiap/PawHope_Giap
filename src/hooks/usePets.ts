@@ -22,7 +22,7 @@ export function useAdoptablePets() {
       setPets(await fetchAdoptablePets());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to load pets");
-      setPets(mockPets);
+      setPets([]);
     } finally {
       setLoading(false);
     }

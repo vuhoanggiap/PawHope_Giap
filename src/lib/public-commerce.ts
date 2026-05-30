@@ -123,16 +123,14 @@ export async function loadProductById(
 }
 
 export function getProducts(): PublicProduct[] {
-  if (!USE_MOCK && apiProductCatalog) return apiProductCatalog;
-  return getActiveProducts();
+  if (USE_MOCK) return getActiveProducts();
+  return apiProductCatalog ?? [];
 }
 
 export function getProduct(productId: number): PublicProduct | undefined {
-  if (!USE_MOCK && apiProductCatalog) {
-    return apiProductCatalog.find((p) => p.product_id === productId);
-  }
+  if (USE_MOCK) return getProductById(productId);
 
-  return getProductById(productId);
+  return apiProductCatalog?.find((p) => p.product_id === productId);
 }
 
 export function getCampaigns(): DonationCampaign[] {

@@ -87,7 +87,7 @@ export function useProductDetail(productId: number) {
             : "Failed to load product";
 
       setError(message);
-      setProduct(undefined);
+      setProduct(getProduct(productId) );
     } finally {
       setLoading(false);
     }
