@@ -1,29 +1,6 @@
 import { apiFetch } from "@/lib/api-client";
 import { mapUserRes, type UserResDto } from "@/lib/api/mappers";
 
-export type RegisterUserBody = {
-  username: string;
-  passwordHash: string;
-  fullName: string;
-  email: string;
-  phone?: string;
-};
-
-export async function registerUser(body: RegisterUserBody) {
-  const dto = await apiFetch<UserResDto>("/users", {
-    method: "POST",
-    body: JSON.stringify({
-      username: body.username,
-      passwordHash: body.passwordHash,
-      fullName: body.fullName,
-      email: body.email,
-      phone: body.phone,
-      role: "USER",
-    }),
-  });
-  return mapUserRes(dto);
-}
-
 export async function updateUser(
   userId: number,
   patch: { username: string; fullName: string; email: string; phone?: string }

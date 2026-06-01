@@ -54,7 +54,8 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "kern" 1, "liga" 1;
   }
 }
 
@@ -225,7 +226,7 @@
 
   /* Admin dashboard — dark glass + brand accents */
   .admin-shell {
-    @apply min-h-screen text-slate-100 relative;
+    @apply min-h-screen text-slate-100 relative font-sans;
     background: linear-gradient(165deg, #080c10 0%, #0c1218 40%, #0a100e 100%);
   }
 

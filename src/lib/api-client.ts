@@ -1,12 +1,12 @@
-/** Spring Boot API — set VITE_API_URL and VITE_USE_MOCK=false when backend is live. */
-export const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8082/api/v1";
+import { clearAuthToken, getAuthToken } from "@/lib/auth-session";
 
-export const USE_MOCK = false;
+/** Spring Boot API — set VITE_API_URL and VITE_USE_MOCK=false when backend is live. */
+export const API_BASE =
+  import.meta.env.VITE_API_URL ?? "http://localhost:8080/api/v1";
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 /** Backend success code (StatusCode.SUCCESS). */
 export const API_SUCCESS_CODE = "0000";
-
-const ACCESS_TOKEN_KEY = "accessToken";
 
 export type ApiResponse<T> = {
   code: string;
@@ -26,26 +26,31 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
+    headers,
   });
 
-  let body: ApiResponse<T> | null = null;
+  if (res.status === 401 && token) {
+    clearAuthToken();
+  }
 
+  let body: ApiResponse<T> | null = null;
   try {
     body = (await res.json()) as ApiResponse<T>;
   } catch {
     if (!res.ok) {
       throw new ApiError(`API ${res.status}`, undefined, res.status);
     }
-
     throw new ApiError("Invalid JSON response", undefined, res.status);
   }
 

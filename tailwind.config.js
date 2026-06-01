@@ -9,6 +9,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Be Vietnam Pro"', 'system-ui', 'Segoe UI', 'Tahoma', 'sans-serif'],
+      },
       colors: {
         // Đây chính là dòng giải quyết lỗi border-border
         border: "hsl(var(--border))",

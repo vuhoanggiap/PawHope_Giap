@@ -13,11 +13,10 @@ export function LoginPage() {
   const { user, login } = usePublicAuth();
   const from = (location.state as { from?: string } | null)?.from ?? "/account";
 
-  // Đổi tên state từ email sang username
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   if (user) {
     return <Navigate to={from} replace />;
@@ -26,22 +25,16 @@ export function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
-
+    setSubmitting(true);
     try {
-      // Gọi hàm login với tham số username thay vì email
-      const loggedUser = await login(username, password);
-
-      if (!loggedUser) {
-        setError("Invalid username or password.");
+      const ok = await login(identifier, password);
+      if (!ok) {
+        setError(USE_MOCK ? "Invalid username or password." : "Invalid email or password.");
         return;
       }
-
       navigate(from, { replace: true });
-    } catch {
-      setError("Invalid username or password.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -68,20 +61,20 @@ export function LoginPage() {
                   {error}
                 </p>
               ) : null}
-
               <div>
-                <label className="text-sm font-medium">Username</label>
+                <label className="text-sm font-medium">
+                  {USE_MOCK ? "Username or email" : "Email"}
+                </label>
                 <Input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  placeholder="Enter your username"
+                  type={USE_MOCK ? "text" : "email"}
+                  placeholder={USE_MOCK ? "user1 or jane@example.com" : "user1@example.com"}
                   className="mt-1"
-                  autoComplete="username"
+                  autoComplete={USE_MOCK ? "username" : "email"}
                 />
               </div>
-
               <div>
                 <label className="text-sm font-medium">Password</label>
                 <Input
@@ -89,37 +82,33 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                   className="mt-1"
                   autoComplete="current-password"
                 />
               </div>
-
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={submitting}
                 className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11"
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {submitting ? "Signing in…" : "Sign in"}
               </Button>
-
               <p className="text-xs text-gray-500 text-center leading-relaxed">
                 {USE_MOCK ? (
                   <>
-                    Demo mock: <code className="text-gray-600">jane_doe / user123</code>
+                    Demo mock: <code className="text-gray-600">user1 / user123</code>
                   </>
                 ) : (
-                  <>Use your registered username and password.</>
+                  <>Sign in with email + password from the database (Spring Boot).</>
                 )}
               </p>
-
               <p className="text-center text-sm text-gray-500">
                 No account?{" "}
                 <Link to="/register" className="text-[#f6931d] font-bold hover:underline">
                   Create one
                 </Link>
               </p>
-
               <p className="text-center text-xs text-gray-400">
                 Staff?{" "}
                 <Link to="/admin/login" className="text-[#2c5f51] hover:underline">
