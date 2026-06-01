@@ -33,7 +33,7 @@ export const Hero = () => {
             size="lg"
             className="bg-[#6f4fba] hover:bg-[#5b3da1] text-white border-none rounded-full px-8 font-bold shadow-lg transition-all"
           >
-            <Link to="/contact#donate">Donate</Link>
+            <Link to="/donate">Donate</Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="rounded-full px-8 font-bold">
             <Link to="/volunteer/apply">Become a volunteer</Link>

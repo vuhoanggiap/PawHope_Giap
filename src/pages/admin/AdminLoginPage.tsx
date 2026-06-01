@@ -13,7 +13,7 @@ export function AdminLoginPage() {
   const from = (location.state as { from?: string } | null)?.from ?? "/admin";
   const existing = getStoredAdmin();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -27,7 +27,7 @@ export function AdminLoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const user = await loginAdmin(email, password);
+      const user = await loginAdmin(username, password);
       if (!user) {
         setError(USE_MOCK ? "Invalid username or password." : "Invalid email or password.");
         return;
@@ -69,8 +69,8 @@ export function AdminLoginPage() {
               {USE_MOCK ? "Username" : "Email"}
             </label>
             <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               type={USE_MOCK ? "text" : "email"}
               placeholder={USE_MOCK ? "admin" : "admin@pawshope.net"}
               className={cn(
