@@ -13,7 +13,8 @@ export function LoginPage() {
   const { user, login } = usePublicAuth();
   const from = (location.state as { from?: string } | null)?.from ?? "/account";
 
-  const [email, setEmail] = useState("");
+  // Đổi tên state từ email sang username
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,16 +29,17 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const loggedUser = await login(email, password);
+      // Gọi hàm login với tham số username thay vì email
+      const loggedUser = await login(username, password);
 
       if (!loggedUser) {
-        setError("Invalid email or password.");
+        setError("Invalid username or password.");
         return;
       }
 
       navigate(from, { replace: true });
     } catch {
-      setError("Invalid email or password.");
+      setError("Invalid username or password.");
     } finally {
       setLoading(false);
     }
@@ -68,15 +70,15 @@ export function LoginPage() {
               ) : null}
 
               <div>
-                <label className="text-sm font-medium">Email</label>
+                <label className="text-sm font-medium">Username</label>
                 <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
-                  placeholder="Enter your email"
+                  placeholder="Enter your username"
                   className="mt-1"
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
 
@@ -104,10 +106,10 @@ export function LoginPage() {
               <p className="text-xs text-gray-500 text-center leading-relaxed">
                 {USE_MOCK ? (
                   <>
-                    Demo mock: <code className="text-gray-600">jane@example.com / user123</code>
+                    Demo mock: <code className="text-gray-600">jane_doe / user123</code>
                   </>
                 ) : (
-                  <>Use your registered email and password.</>
+                  <>Use your registered username and password.</>
                 )}
               </p>
 

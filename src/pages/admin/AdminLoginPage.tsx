@@ -11,7 +11,7 @@ export function AdminLoginPage() {
   const from = (location.state as { from?: string } | null)?.from ?? "/admin";
   const existing = getStoredAdmin();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,10 +26,10 @@ export function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const user = await loginAdmin(email, password);
+      const user = await loginAdmin(username, password);
 
       if (!user) {
-        setError("Invalid email/password or you do not have staff permission.");
+        setError("Invalid username/password or you do not have staff permission.");
         return;
       }
 
@@ -64,14 +64,14 @@ export function AdminLoginPage() {
           ) : null}
 
           <div>
-            <label className="text-sm font-medium text-slate-400">Email</label>
+            <label className="text-sm font-medium text-slate-400">Username</label>
             <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
               className="admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
-              autoComplete="email"
+              autoComplete="username"
               required
             />
           </div>

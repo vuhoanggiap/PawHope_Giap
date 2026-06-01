@@ -68,7 +68,10 @@ export function RescueTrackPage() {
     if (q) navigate(`/rescue/track/${encodeURIComponent(q)}`, { replace: true });
   };
 
-  const activeIndex = report ? rescueStatusIndex(report.status) : 0;
+  // --- SỬA LỖI TIMELINE Ở ĐÂY ---
+  const baseIndex = report ? rescueStatusIndex(report.status) : 0;
+  // Nếu status là RESCUED, ép index vượt quá mảng để đánh dấu tích xanh toàn bộ
+  const activeIndex = report?.status === "RESCUED" ? rescueSteps.length : baseIndex;
   const failed = report?.status === "FAILED";
 
   return (

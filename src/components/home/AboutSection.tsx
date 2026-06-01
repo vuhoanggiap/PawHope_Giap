@@ -25,7 +25,7 @@ export const AboutSection = () => {
           </div>
         </div>
         <img
-          src="https://images.unsplash.com/photo-1548199973-03cce0bbc87a?w=800"
+          src="https://thanhnien.mediacdn.vn/Uploaded/hoangnam/2022_10_24/2-1048.jpg"
           alt="Volunteers caring for pets"
           className="rounded-2xl shadow-xl w-full h-80 object-cover"
         />

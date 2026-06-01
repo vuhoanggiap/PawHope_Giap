@@ -1,8 +1,7 @@
 /** Spring Boot API — set VITE_API_URL and VITE_USE_MOCK=false when backend is live. */
-export const API_BASE =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8080/api/v1";
+export const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8082/api/v1";
 
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+export const USE_MOCK = false;
 
 /** Backend success code (StatusCode.SUCCESS). */
 export const API_SUCCESS_CODE = "0000";

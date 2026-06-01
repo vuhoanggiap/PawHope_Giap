@@ -45,17 +45,21 @@ export function StatusTimeline({
               >
                 {done ? <Check size={14} /> : <span className="text-xs font-bold">{i + 1}</span>}
               </span>
-              <p
-                className={cn(
-                  "font-semibold text-sm",
-                  current ? "text-[#2c5f51]" : done ? "text-gray-700" : "text-gray-400"
-                )}
-              >
-                {step.label}
-              </p>
-              {step.description ? (
-                <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{step.description}</p>
-              ) : null}
+              
+              {/* Thêm thẻ div bọc nội dung và padding-left (pl-3) để tách chữ ra xa icon */}
+              <div className="pl-3">
+                <p
+                  className={cn(
+                    "font-semibold text-sm",
+                    current ? "text-[#2c5f51]" : done ? "text-gray-700" : "text-gray-400"
+                  )}
+                >
+                  {step.label}
+                </p>
+                {step.description ? (
+                  <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{step.description}</p>
+                ) : null}
+              </div>
             </li>
           );
         })}

@@ -66,15 +66,16 @@ function saveRegisteredUsers(users: StoredUser[]) {
   writeJson(USERS_KEY, users);
 }
 
-export async function loginPublic(email: string, password: string): Promise<PublicUser | null> {
-  const key = email.trim().toLowerCase();
+// ============== SỬA LẠI ĐỂ GỬI USERNAME LÊN BE ==============
+export async function loginPublic(emailOrUsername: string, password: string): Promise<PublicUser | null> {
+  const key = emailOrUsername.trim().toLowerCase();
 
   if (!USE_MOCK) {
     try {
       const res = await apiFetch<LoginResDto>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: key,
+          username: key, // Sửa 'email' thành 'username' để khớp với Spring Boot
           password,
         }),
       });
@@ -83,8 +84,8 @@ export async function loginPublic(email: string, password: string): Promise<Publ
 
       const user: PublicUser = {
         userId: res.userId ?? 0,
-        username: res.username ?? key.split("@")[0],
-        fullName: res.fullName ?? res.username ?? key.split("@")[0],
+        username: res.username ?? key,
+        fullName: res.fullName ?? res.username ?? key,
         email: res.email ?? key,
         phone: res.phone,
         role: res.role ?? "USER",
@@ -97,13 +98,14 @@ export async function loginPublic(email: string, password: string): Promise<Publ
     }
   }
 
+  // Luồng Mock
   const demo = DEMO_ACCOUNTS[key];
   if (demo && demo.password === password) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(demo.user));
     return demo.user;
   }
 
-  const registered = loadRegisteredUsers().find((u) => u.email.toLowerCase() === key);
+  const registered = loadRegisteredUsers().find((u) => u.email.toLowerCase() === key || u.username.toLowerCase() === key);
   if (registered && registered.password === password) {
     const { password: _, ...user } = registered;
     localStorage.setItem(SESSION_KEY, JSON.stringify(user));

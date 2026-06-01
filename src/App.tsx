@@ -51,6 +51,7 @@ import { AdminMySchedulePage } from "./pages/admin/AdminMySchedulePage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminVolunteersPage } from "./pages/admin/AdminVolunteersPage";
 import { AdminNotificationsPage } from "./pages/admin/AdminNotificationsPage";
+import { AdminPetCreatePage } from "./pages/admin/AdminPetCreatePage";
 
 function App() {
   return (
@@ -116,6 +117,7 @@ function App() {
                 <Route path="volunteer-schedule" element={<AdminVolunteerSchedulePage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="email-logs" element={<AdminEmailLogsPage />} />
+                <Route path="/admin/pets/create" element={<AdminPetCreatePage />} />
               </Route>
             </Route>
           </Route>

@@ -114,9 +114,9 @@ export const AdoptPage = () => {
                   Showing <span className="font-medium text-[#3d6b5c]">{filtered.length}</span> adoptable
                   pet{filtered.length !== 1 ? "s" : ""}
                 </p>
-                <span className="text-xs font-medium text-[#a8b8ae] bg-white/70 px-3 py-1.5 rounded-full ring-1 ring-[#2c5f51]/8">
+                {/* <span className="text-xs font-medium text-[#a8b8ae] bg-white/70 px-3 py-1.5 rounded-full ring-1 ring-[#2c5f51]/8">
                   UI preview — API coming soon
-                </span>
+                </span> */}
               </div>
 
               {filtered.length === 0 ? (

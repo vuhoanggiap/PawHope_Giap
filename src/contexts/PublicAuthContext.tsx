@@ -92,13 +92,18 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
       },
 
       register: async (input) => {
+        // Gọi hàm đăng ký từ lib/public-auth
         const u = await registerPublic(input);
 
+        // Nếu đăng ký thất bại, trả về false
         if (!u) return false;
 
-        setUser(u);
-        void refreshCounts(u);
+        // --- XÓA CÁC DÒNG NÀY ĐI ---
+        // setUser(u); 
+        // void refreshCounts(u);
+        // ---------------------------
 
+        // Chỉ trả về true, không set user vào state
         return true;
       },
 

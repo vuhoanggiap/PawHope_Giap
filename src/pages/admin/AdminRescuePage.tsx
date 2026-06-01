@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Đã thêm useNavigate
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminFilterPill, AdminSearchInput, adminInputClass } from "@/components/admin/AdminControls";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/admin/admin-data";
 import { staffIsAdmin, getStaffUser } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Trash2, PawPrint } from "lucide-react"; // Đã thêm icon PawPrint
 
 const STATUS_OPTIONS = ["PENDING", "IN_PROGRESS", "RESCUED", "FAILED"] as const;
 type ScopeFilter = "ALL" | "MINE";
@@ -25,10 +25,10 @@ type ScopeFilter = "ALL" | "MINE";
 export function AdminRescuePage() {
   const staff = getStaffUser();
   const isAdminUser = staffIsAdmin();
+  const navigate = useNavigate(); // Khởi tạo hook chuyển trang
+  
   const [reports, setReports] = useState<AdminRescueRow[]>(mockRescueReports as AdminRescueRow[]);
-  const [assignees, setAssignees] = useState<{ user_id: number; full_name: string; role: string }[]>(
-    []
-  );
+  const [assignees, setAssignees] = useState<{ user_id: number; full_name: string; role: string }[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(mockRescueReports[0]?.report_id ?? null);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>(isAdminUser ? "ALL" : "MINE");
@@ -86,9 +86,7 @@ export function AdminRescuePage() {
 
   const handleAssign = (userId: number) => {
     if (!selected || !userId) return;
-    void runAction(() =>
-      patchRescueReport(selected.report_id, selected, { assigned_to: userId })
-    );
+    void runAction(() => patchRescueReport(selected.report_id, selected, { assigned_to: userId }));
   };
 
   const handleStatus = (status: string) => {
@@ -102,6 +100,18 @@ export function AdminRescuePage() {
     void runAction(async () => {
       await removeRescueReport(selected.report_id);
       setSelectedId(null);
+    });
+  };
+
+  // --- HÀM CHUYỂN TRANG VÀ ĐẨY DỮ LIỆU SANG FORM TẠO PET ---
+  const handleCreatePet = () => {
+    if (!selected) return;
+    navigate("/admin/pets/create", {
+      state: {
+        fromReportId: selected.report_id,
+        imageUrl: selected.image_url,
+        description: `Ghi chú cứu hộ: ${selected.additional_note || "Không có"}\nĐặc điểm: ${formatEnum(selected.temperament)} - ${formatEnum(selected.behavior)}\nĐịa điểm tìm thấy: ${selected.location_text}`
+      }
     });
   };
 
@@ -286,15 +296,25 @@ export function AdminRescuePage() {
                     </select>
                   </div>
                 </AdminFieldGrid>
+                
+                {/* --- KHU VỰC HIỂN THỊ NÚT TẠO THÚ CƯNG KHI TRẠNG THÁI LÀ RESCUED --- */}
                 {selected.status === "RESCUED" ? (
-                  <p className="text-xs text-emerald-400 mt-4 flex items-center gap-2">
-                    <ExternalLink size={14} />
-                    Next step: create pet profile linked to report #{selected.report_id}
-                    <Link to="/admin/pets" className="underline">
-                      Go to Pets
-                    </Link>
-                  </p>
+                  <div className="mt-6 pt-4 border-t border-emerald-500/20 flex flex-col items-start gap-3">
+                    <p className="text-sm text-emerald-400 font-medium flex items-center gap-2">
+                      <ExternalLink size={16} />
+                      Cứu hộ thành công! Bước tiếp theo: Tạo hồ sơ thú cưng.
+                    </p>
+                    <button
+                      onClick={handleCreatePet}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+                    >
+                      <PawPrint size={16} />
+                      Tạo Hồ Sơ Thú Cưng cho ca này
+                    </button>
+                  </div>
                 ) : null}
+                {/* ------------------------------------------------------------------- */}
+
               </AdminPanel>
             </>
           )}

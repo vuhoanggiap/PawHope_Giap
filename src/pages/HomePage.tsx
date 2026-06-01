@@ -5,6 +5,7 @@ import { Donation } from "@/components/home/Donation";
 import { KnowledgeBase } from "@/components/home/KnowledgeBase";
 import { RescueStories } from "@/components/home/RescueStories";
 import { Partners } from "@/components/home/Partners";
+import FloatingRescueWidget from "@/components/home/FloatingRescueWidget";
 
 export const HomePage = () => (
   <>
@@ -15,5 +16,6 @@ export const HomePage = () => (
     <KnowledgeBase />
     <RescueStories />
     <Partners />
+    <FloatingRescueWidget />
   </>
 );

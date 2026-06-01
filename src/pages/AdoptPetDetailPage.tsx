@@ -23,6 +23,8 @@ export const AdoptPetDetailPage = () => {
   const [loadingPet, setLoadingPet] = useState(!USE_MOCK && petId > 0);
   const [submitted, setSubmitted] = useState<{ code: string; id: number } | null>(null);
   const [agreed, setAgreed] = useState(false);
+  // State mới để điều khiển việc hiển thị form
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     if (USE_MOCK || !petId) return;
@@ -126,12 +128,6 @@ export const AdoptPetDetailPage = () => {
                         Sign in to apply
                       </Link>
                     </Button>
-                    <p className="text-xs text-gray-400">
-                      New here?{" "}
-                      <Link to="/register" className="text-[#f6931d] font-medium hover:underline">
-                        Create account
-                      </Link>
-                    </p>
                   </div>
                 ) : submitted ? (
                   <div className="text-center py-8 space-y-3">
@@ -140,6 +136,15 @@ export const AdoptPetDetailPage = () => {
                     <p className="text-sm text-gray-500">Reference: {submitted.code}</p>
                     <Button asChild variant="outline" className="mt-2">
                       <Link to={`/account/adoptions/${submitted.id}`}>View progress →</Link>
+                    </Button>
+                  </div>
+                ) : !isApplying ? (
+                  <div className="text-center py-4">
+                    <Button 
+                      onClick={() => setIsApplying(true)} 
+                      className="bg-[#2c5f51] hover:bg-green-800 rounded-full px-8"
+                    >
+                      Apply for adoption
                     </Button>
                   </div>
                 ) : (

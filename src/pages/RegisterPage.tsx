@@ -19,6 +19,8 @@ export function RegisterPage() {
     e.preventDefault();
     setError("");
     const fd = new FormData(e.currentTarget);
+    
+    // Giả sử register trả về true nếu thành công
     const ok = await register({
       username: String(fd.get("username") || ""),
       password: String(fd.get("password") || ""),
@@ -26,13 +28,16 @@ export function RegisterPage() {
       email: String(fd.get("email") || ""),
       phone: String(fd.get("phone") || "") || undefined,
     });
+    
     if (!ok) {
-      setError(
-        "Could not create account. Username may be taken, password too short (min 6), or API unavailable."
-      );
+      setError("Could not create account...");
       return;
     }
-    navigate("/account", { replace: true });
+
+    // THAY VÌ navigate("/account", { replace: true });
+    // Hãy dùng:
+    alert("Account created! Please sign in.");
+    navigate("/login"); 
   };
 
   return (

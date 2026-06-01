@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, Bell } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { adminDashboardStats as defaultStats } from "@/data/admin-mock";
-import { USE_MOCK } from "@/lib/api-client";
+import { apiFetch, USE_MOCK } from "@/lib/api-client";
 import {
   getDashboardQuickActions,
   getDashboardStatCards,
@@ -17,10 +17,25 @@ export function AdminDashboardPage() {
   const forbidden = (location.state as { forbidden?: boolean } | null)?.forbidden;
   const staff = getStaffUser();
   const role = staff?.role;
+  
+  // 1. Khai báo state có thêm TypeScript typing <any[]> để tránh lỗi Vite
+  const [todayFollowups, setTodayFollowups] = useState<any[]>([]);
 
   const [s, setS] = useState(defaultStats);
+  
   useEffect(() => {
     void loadDashboardStats().then(setS);
+  }, []);
+
+  // 2. Tối ưu kết nối Spring: Thêm type cho res và bắt lỗi mạng
+  useEffect(() => {
+    apiFetch("/adoption_followups/today")
+      .then((res: any) => {
+        if (res && res.data) {
+          setTodayFollowups(res.data);
+        }
+      })
+      .catch((err) => console.error("Lỗi khi tải danh sách follow-up hôm nay:", err));
   }, []);
 
   const statCards = getDashboardStatCards(s, role);
@@ -123,6 +138,42 @@ export function AdminDashboardPage() {
             ))}
           </div>
         </div>
+        {/* --- BẢNG TODAY'S FOLLOW-UPS BẮT ĐẦU Ở ĐÂY --- */}
+        <div className="admin-panel mt-6">
+          <div className="admin-panel-header">
+            <h3 className="font-medium text-white">Today's Scheduled Follow-ups ({todayFollowups.length})</h3>
+          </div>
+          <div className="p-5">
+            {todayFollowups.length === 0 ? (
+              <p className="text-sm text-slate-500 italic">No follow-ups scheduled for today.</p>
+            ) : (
+              <div className="space-y-3">
+                {todayFollowups.map((f) => (
+                  <div 
+                    key={f.followup_id || f.followupId} 
+                    className="flex items-center justify-between border-b border-white/[0.04] pb-3 last:border-0 last:pb-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        Adoption #{f.adoption_id || f.adoptionId}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Type: <span className="text-[#f6931d]">{f.followup_type || f.followupType}</span>
+                      </p>
+                    </div>
+                    <Link 
+                      to={`/admin/adoptions/${f.adoption_id || f.adoptionId}`} 
+                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded text-xs font-medium transition-colors"
+                    >
+                      View details
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* --- KẾT THÚC BẢNG --- */}
       </div>
     </div>
   );
