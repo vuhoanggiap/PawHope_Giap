@@ -14,6 +14,15 @@ import { formatApiDate, formatApiDateTime, toNumber } from "@/lib/api/format";
 import type { ProductResDto } from "@/lib/api/product-mapper";
 import { mapProductRes } from "@/lib/api/product-mapper";
 
+function formatApiDateTimeKeepLocal(value?: string) {
+  if (!value) return "";
+
+  return value
+    .replace("T", " ")
+    .replace(/\.\d{3}.*/, "")
+    .slice(0, 16);
+}
+
 export type PetResDto = {
   petId: number;
   petCode?: string;
@@ -322,7 +331,7 @@ export function mapOrderRes(dto: OrderResDto): PublicOrder {
     receiver_name: dto.receiverName,
     receiver_phone: dto.receiverPhone,
     note: dto.note,
-    created_at: formatApiDateTime(dto.createdAt),
+    created_at: formatApiDateTimeKeepLocal(dto.createdAt),
   };
 }
 

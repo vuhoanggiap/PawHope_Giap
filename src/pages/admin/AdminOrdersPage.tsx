@@ -10,7 +10,15 @@ export function AdminOrdersPage() {
   const [orders, setOrders] = useState(mockOrders);
 
   useEffect(() => {
-    void loadOrders().then(setOrders);
+    void loadOrders().then((list) => {
+      const sorted = [...list].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      );
+
+      setOrders(sorted);
+    });
   }, []);
 
   return (

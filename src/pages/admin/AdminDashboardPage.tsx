@@ -61,9 +61,9 @@ export function AdminDashboardPage() {
               : "Volunteer overview from API."
             : USE_MOCK
               ? "Overview with sample data (mock mode)."
-              : "Live overview from Spring Boot API."
+              : "Overview of Paws Hope"
         }
-        badge={USE_MOCK ? "Mock" : "Live API"}
+        badge={USE_MOCK ? "Mock" : ""}
       />
 
       {forbidden ? (

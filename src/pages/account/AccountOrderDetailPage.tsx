@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusTimeline } from "@/components/public/StatusTimeline";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum, orderProgressSteps, orderStatusIndex } from "@/data/public-mock";
+import {
+  formatPublicEnum,
+  orderProgressSteps,
+  orderStatusIndex,
+} from "@/data/public-mock";
 import type { PublicOrder } from "@/data/public-mock";
 import { loadOrderById } from "@/lib/public-commerce";
 import { formatVnd } from "@/lib/formatVnd";
@@ -15,7 +19,19 @@ export function AccountOrderDetailPage() {
 
   useEffect(() => {
     if (!user || !id) return;
-    void loadOrderById(user.userId, Number(id)).then(setOrder);
+
+    const load = async () => {
+      const latestOrder = await loadOrderById(user.userId, Number(id));
+      setOrder(latestOrder);
+    };
+
+    void load();
+
+    const intervalId = window.setInterval(() => {
+      void load();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
   }, [user, id]);
 
   if (!user) return null;
@@ -24,7 +40,10 @@ export function AccountOrderDetailPage() {
     return (
       <div className="soft-card p-8 text-center soft-subtext">
         <p>Order not found.</p>
-        <Link to="/account/orders" className="text-[#f6931d] font-medium mt-4 inline-block hover:underline">
+        <Link
+          to="/account/orders"
+          className="text-[#f6931d] font-medium mt-4 inline-block hover:underline"
+        >
           Back to orders
         </Link>
       </div>
@@ -46,15 +65,28 @@ export function AccountOrderDetailPage() {
         <div className="flex flex-wrap justify-between gap-4">
           <div>
             <p className="soft-label">Order</p>
-            <h2 className="text-2xl font-bold text-[#2c5f51]">#{order.order_id}</h2>
+            <h2 className="text-2xl font-bold text-[#2c5f51]">
+              #{order.order_id}
+            </h2>
             <p className="text-sm soft-subtext mt-1">{order.created_at}</p>
           </div>
+
           <div className="text-right text-sm space-y-1">
             <p>
               Payment:{" "}
-              <span className="font-semibold text-[#3d6b5c]">{formatPublicEnum(order.payment_status)}</span>
+              <span className="font-semibold text-[#3d6b5c]">
+                {formatPublicEnum(order.payment_status)}
+              </span>
             </p>
-            <p className="font-bold text-[#2c5f51]">{formatVnd(order.total_amount)}</p>
+            <p>
+              Status:{" "}
+              <span className="font-semibold text-[#3d6b5c]">
+                {formatPublicEnum(order.order_status)}
+              </span>
+            </p>
+            <p className="font-bold text-[#2c5f51]">
+              {formatVnd(order.total_amount)}
+            </p>
           </div>
         </div>
 
@@ -74,7 +106,9 @@ export function AccountOrderDetailPage() {
 
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[#a8b8ae]">Ship to</p>
+            <p className="text-xs uppercase tracking-wide text-[#a8b8ae]">
+              Ship to
+            </p>
             <p className="mt-1 text-[#3d6b5c]">{order.receiver_name}</p>
             <p className="soft-subtext">{order.receiver_phone}</p>
             <p className="soft-subtext mt-1">{order.shipping_address}</p>
@@ -82,7 +116,9 @@ export function AccountOrderDetailPage() {
         </div>
 
         <div>
-          <h3 className="font-semibold text-[#2c5f51] mb-4">Delivery progress</h3>
+          <h3 className="font-semibold text-[#2c5f51] mb-4">
+            Delivery progress
+          </h3>
           <StatusTimeline
             steps={orderProgressSteps.map((s) => ({
               id: s.status,

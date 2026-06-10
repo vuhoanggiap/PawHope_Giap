@@ -33,3 +33,31 @@ export async function fetchAllOrders(): Promise<PublicOrder[]> {
   const list = await apiFetch<OrderResDto[]>("/orders");
   return list.map(mapOrderRes);
 }
+
+export async function updateOrderStatus(
+  orderId: number,
+  status: string
+): Promise<PublicOrder> {
+  const dto = await apiFetch<OrderResDto>(
+    `/orders/${orderId}/order-status?status=${encodeURIComponent(status)}`,
+    {
+      method: "PATCH",
+    }
+  );
+
+  return mapOrderRes(dto);
+}
+
+export async function updatePaymentStatus(
+  orderId: number,
+  status: string
+): Promise<PublicOrder> {
+  const dto = await apiFetch<OrderResDto>(
+    `/orders/${orderId}/payment-status?status=${encodeURIComponent(status)}`,
+    {
+      method: "PATCH",
+    }
+  );
+
+  return mapOrderRes(dto);
+}

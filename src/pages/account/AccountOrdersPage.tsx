@@ -13,7 +13,12 @@ export function AccountOrdersPage() {
 
   useEffect(() => {
     if (!user) return;
-    void loadUserOrders(user.userId).then(setOrders);
+
+    void loadUserOrders(user.userId).then((data) => {
+      setOrders(
+        [...data].sort((a, b) => b.order_id - a.order_id)
+      );
+    });
   }, [user]);
 
   if (!user) return null;

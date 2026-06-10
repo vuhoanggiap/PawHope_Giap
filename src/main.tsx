@@ -1,13 +1,23 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-import { migrateEncodingSessions } from '@/lib/session-migrate'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 
-migrateEncodingSessions()
+import "./index.css";
+import App from "./App.tsx";
+import { migrateEncodingSessions } from "@/lib/session-migrate";
 
-createRoot(document.getElementById('root')!).render(
+migrateEncodingSessions();
+
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
-)
+    <PayPalScriptProvider
+      options={{
+        clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
+        currency: "USD",
+        intent: "capture",
+      }}
+    >
+      <App />
+    </PayPalScriptProvider>
+  </StrictMode>
+);

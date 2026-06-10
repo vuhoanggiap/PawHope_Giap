@@ -52,6 +52,7 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminVolunteersPage } from "./pages/admin/AdminVolunteersPage";
 import { AdminNotificationsPage } from "./pages/admin/AdminNotificationsPage";
 import { AdminPetCreatePage } from "./pages/admin/AdminPetCreatePage";
+import { PaypalSuccessPage } from "./pages/PaypalSuccessPage";
 
 function App() {
   return (
@@ -78,6 +79,7 @@ function App() {
             <Route element={<RequirePublicAuth />}>
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
+              <Route path="paypal-success" element={<PaypalSuccessPage />} />
               <Route path="account" element={<AccountLayout />}>
                 <Route index element={<AccountDashboardPage />} />
                 <Route path="adoptions" element={<AccountAdoptionsPage />} />

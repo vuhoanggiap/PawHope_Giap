@@ -72,7 +72,7 @@ export function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               type={USE_MOCK ? "text" : "email"}
-              placeholder={USE_MOCK ? "admin" : "admin@pawshope.net"}
+              placeholder={USE_MOCK ? "admin" : "Enter your email"}
               className={cn(
                 "admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               )}
@@ -86,7 +86,7 @@ export function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               className="admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               autoComplete="current-password"
               required
@@ -100,21 +100,6 @@ export function AdminLoginPage() {
           >
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
-
-          <p className="pt-1 text-center text-xs text-slate-500">
-            {USE_MOCK ? (
-              <>
-                Demo: <code className="text-slate-400">admin / admin123</code> or{" "}
-                <code className="text-slate-400">volunteer1 / volunteer123</code>
-              </>
-            ) : (
-              <>
-                API: <code className="text-slate-400">{API_BASE}</code>
-                <br />
-                Demo: <code className="text-slate-400">admin@pawshope.net / admin123</code>
-              </>
-            )}
-          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">

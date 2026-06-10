@@ -20,7 +20,6 @@ export function RegisterPage() {
     setError("");
     const fd = new FormData(e.currentTarget);
     
-    // Giả sử register trả về true nếu thành công
     const ok = await register({
       username: String(fd.get("username") || ""),
       password: String(fd.get("password") || ""),
@@ -33,9 +32,6 @@ export function RegisterPage() {
       setError("Could not create account...");
       return;
     }
-
-    // THAY VÌ navigate("/account", { replace: true });
-    // Hãy dùng:
     alert("Account created! Please sign in.");
     navigate("/login"); 
   };
@@ -65,23 +61,23 @@ export function RegisterPage() {
               ) : null}
               <div>
                 <label className="text-sm font-medium">Full name</label>
-                <Input name="fullName" required className="mt-1" />
+                <Input name="fullName" required className="mt-1" placeholder="Enter your full name" />
               </div>
               <div>
                 <label className="text-sm font-medium">Username</label>
-                <Input name="username" required minLength={3} className="mt-1" autoComplete="username" />
+                <Input name="username" required minLength={3} className="mt-1" autoComplete="username" placeholder="Enter your username" />
               </div>
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <Input name="email" type="email" required className="mt-1" />
+                <Input name="email" type="email" required className="mt-1" placeholder="Enter your email" />
               </div>
               <div>
                 <label className="text-sm font-medium">Phone (optional)</label>
-                <Input name="phone" placeholder="+84 ..." className="mt-1" />
+                <Input name="phone" placeholder="Enter your phone number" className="mt-1" />
               </div>
               <div>
                 <label className="text-sm font-medium">Password</label>
-                <Input name="password" type="password" required minLength={6} className="mt-1" />
+                <Input name="password" type="password" required minLength={6} className="mt-1" placeholder="Enter your password" />
               </div>
               <Button type="submit" className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11">
                 Create account
