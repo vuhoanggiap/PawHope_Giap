@@ -68,7 +68,6 @@ function saveRegisteredUsers(users: StoredUser[]) {
   writeJson(USERS_KEY, users);
 }
 
-<<<<<<< HEAD
 function saveSession(user: PublicUser) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
 }
@@ -79,21 +78,6 @@ function loginIdentifierToEmail(identifier: string): string {
   const demo = DEMO_ACCOUNTS[trimmed.toLowerCase()];
   return demo?.user.email ?? trimmed;
 }
-=======
-// ============== SỬA LẠI ĐỂ GỬI USERNAME LÊN BE ==============
-export async function loginPublic(emailOrUsername: string, password: string): Promise<PublicUser | null> {
-  const key = emailOrUsername.trim().toLowerCase();
-
-  if (!USE_MOCK) {
-    try {
-      const res = await apiFetch<LoginResDto>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          username: key, // Sửa 'email' thành 'username' để khớp với Spring Boot
-          password,
-        }),
-      });
->>>>>>> cf6b2c9 (Update Adopt)
 
 export async function loginPublic(
   identifier: string,
@@ -101,27 +85,11 @@ export async function loginPublic(
 ): Promise<PublicUser | null> {
   const key = identifier.trim().toLowerCase();
 
-<<<<<<< HEAD
   if (USE_MOCK) {
     const demo = DEMO_ACCOUNTS[key];
     if (demo && demo.password === password) {
       saveSession(demo.user);
       return demo.user;
-=======
-      const user: PublicUser = {
-        userId: res.userId ?? 0,
-        username: res.username ?? key,
-        fullName: res.fullName ?? res.username ?? key,
-        email: res.email ?? key,
-        phone: res.phone,
-        role: res.role ?? "USER",
-      };
-
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-      return user;
-    } catch {
-      return null;
->>>>>>> cf6b2c9 (Update Adopt)
     }
     const registered = loadRegisteredUsers().find(
       (u) => u.username.toLowerCase() === key || u.email.toLowerCase() === key
@@ -134,7 +102,6 @@ export async function loginPublic(
     return null;
   }
 
-<<<<<<< HEAD
   const email = loginIdentifierToEmail(identifier);
   try {
     const res = await loginWithEmail(email, password);
@@ -149,19 +116,6 @@ export async function loginPublic(
       role: "USER",
     };
     saveSession(user);
-=======
-  // Luồng Mock
-  const demo = DEMO_ACCOUNTS[key];
-  if (demo && demo.password === password) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(demo.user));
-    return demo.user;
-  }
-
-  const registered = loadRegisteredUsers().find((u) => u.email.toLowerCase() === key || u.username.toLowerCase() === key);
-  if (registered && registered.password === password) {
-    const { password: _, ...user } = registered;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
->>>>>>> cf6b2c9 (Update Adopt)
     return user;
   } catch {
     return null;
