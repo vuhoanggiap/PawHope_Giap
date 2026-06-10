@@ -10,15 +10,36 @@ export function AdminOrdersPage() {
   const [orders, setOrders] = useState(mockOrders);
 
   useEffect(() => {
-    void loadOrders().then((list) => {
-      const sorted = [...list].sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() -
-          new Date(a.created_at).getTime()
-      );
+    let cancelled = false;
 
-      setOrders(sorted);
-    });
+    const load = async () => {
+      try {
+        const list = await loadOrders();
+
+        const sorted = [...list].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+        );
+
+        if (!cancelled) {
+          setOrders(sorted);
+        }
+      } catch (err) {
+        console.error("Load orders failed", err);
+      }
+    };
+
+    void load();
+
+    const intervalId = window.setInterval(() => {
+      void load();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   return (
