@@ -18,10 +18,17 @@ export type RegisterBody = {
   phone?: string;
 };
 
+/**
+ * Sử dụng lại apiFetch gốc của dự án nhưng đổi tên trường gửi đi thành 'username'
+ * Đã sửa từ 'public' thành 'export' để đúng cú pháp TypeScript
+ */
 export async function loginWithEmail(email: string, password: string) {
   return apiFetch<LoginResDto>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email: email.trim(), password }),
+    body: JSON.stringify({ 
+      username: email.trim(), // KHỚP 100% VỚI 'private String username' trong LoginReq của Java
+      password: password 
+    }),
   });
 }
 

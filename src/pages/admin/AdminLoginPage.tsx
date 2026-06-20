@@ -18,6 +18,7 @@ export function AdminLoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  
   if (existing && canAccessAdmin(existing.role)) {
     return <Navigate to="/admin" replace />;
   }
@@ -27,9 +28,10 @@ export function AdminLoginPage() {
     setError("");
     setSubmitting(true);
     try {
+      
       const user = await loginAdmin(username, password);
       if (!user) {
-        setError(USE_MOCK ? "Invalid username or password." : "Invalid email or password.");
+        setError("Invalid username/email or password.");
         return;
       }
       navigate(from, { replace: true });
@@ -38,7 +40,9 @@ export function AdminLoginPage() {
         setError(err.message);
       } else {
         setError(
-          USE_MOCK ? "Sign-in failed." : `Cannot reach API (${API_BASE}). Is Spring Boot running?`
+          USE_MOCK 
+            ? "Sign-in failed." 
+            : `Cannot reach API (${API_BASE}). Is Spring Boot running?`
         );
       }
     } finally {
@@ -64,29 +68,32 @@ export function AdminLoginPage() {
             </p>
           ) : null}
 
+          
           <div>
             <label className="text-sm font-medium text-slate-400">
-              {USE_MOCK ? "Username" : "Email"}
+              Email
             </label>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              type={USE_MOCK ? "text" : "email"}
-              placeholder={USE_MOCK ? "admin" : "Enter your email"}
+              type="text"
+              placeholder="Enter username or email..."
               className={cn(
                 "admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               )}
-              autoComplete={USE_MOCK ? "username" : "email"}
+              autoComplete="username"
               required
             />
           </div>
+
+          
           <div>
             <label className="text-sm font-medium text-slate-400">Password</label>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="••••••••"
               className="admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               autoComplete="current-password"
               required

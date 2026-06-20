@@ -1,37 +1,108 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
-import { formatPublicEnum, type PublicAdoption, type PublicNotification } from "@/data/public-mock";
-import type { PublicRescueReport } from "@/data/public-mock";
-import {
-  loadUserAdoptions,
-  loadUserNotifications,
-  loadUserRescueReports,
-} from "@/lib/public-store";
-import type { PublicOrder } from "@/data/public-mock";
-import { getCartSubtotal, loadUserOrders } from "@/lib/public-commerce";
+import { apiFetch } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatVnd";
-import { Bell, ChevronRight, HeartHandshake, LifeBuoy, Search, ShoppingBag, ShoppingCart } from "lucide-react";
+import { getCartSubtotal } from "@/lib/public-commerce"; // Đã loại bỏ import thừa gây lỗi warning
+import { Bell, ChevronRight, HeartHandshake, LifeBuoy, Search, ShoppingBag, ShoppingCart, CalendarClock } from "lucide-react";
+
+// --- LIVE DATABASE INTERFACES ---
+interface BackendAdoption {
+  id?: number; 
+  adoption_id?: number;
+  adoptionId?: number; 
+  application_code: string;
+  pet_name: string;
+  pet_image: string;
+  status: string;
+  apply_date: string;
+}
+
+interface BackendRescueReport {
+  id: number; 
+  status: string;
+}
+
+interface BackendNotification {
+  noti_id: number;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  link?: string;
+}
+
+interface BackendOrder {
+  order_id: number;
+  order_status: string;
+  created_at: string;
+  total_amount: number;
+}
+
+const formatEnumLabel = (str: string) => {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase().replace(/_/g, " ");
+};
+
+const safeGetAdoptionId = (adoption: BackendAdoption | undefined): number => {
+  if (!adoption) return 0;
+  return adoption.id || adoption.adoption_id || (adoption as any).adoptionId || 0;
+};
 
 export function AccountDashboardPage() {
   const { user, cartCount } = usePublicAuth();
-  const [adoptions, setAdoptions] = useState<PublicAdoption[]>([]);
-  const [rescues, setRescues] = useState<PublicRescueReport[]>([]);
-  const [notifications, setNotifications] = useState<PublicNotification[]>([]);
-  const [orders, setOrders] = useState<PublicOrder[]>([]);
+  
+  const [adoptions, setAdoptions] = useState<BackendAdoption[]>([]);
+  const [rescues, setRescues] = useState<BackendRescueReport[]>([]);
+  const [notifications, setNotifications] = useState<BackendNotification[]>([]);
+  const [orders, setOrders] = useState<BackendOrder[]>([]);
+  const [latestMeeting, setLatestMeeting] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user) return;
+
     void Promise.all([
-      loadUserAdoptions(user.userId),
-      loadUserRescueReports(user.userId),
-      loadUserNotifications(user.userId),
-      loadUserOrders(user.userId),
-    ]).then(([a, r, n, o]) => {
-      setAdoptions(a);
-      setRescues(r);
-      setNotifications(n);
-      setOrders(o);
+      apiFetch<BackendAdoption[]>(`/adoptions/user/${user.userId}`).catch(() => []),
+      apiFetch<BackendRescueReport[]>(`/rescue_reports/user/${user.userId}`)
+        .catch(() => apiFetch<BackendRescueReport[]>(`/rescue-reports/user/${user.userId}`).catch(() => [])),
+      apiFetch<BackendNotification[]>(`/notifications/user/${user.userId}`).catch(() => []),
+      apiFetch<BackendOrder[]>(`/orders/user/${user.userId}`).catch(() => []),
+    ]).then(([adoptionList, rescueList, notiList, orderList]) => {
+      
+      // Đẩy tất cả các đơn chưa đóng (active) lên trên đầu để ưu tiên quét lịch hẹn
+      const sortedAdoptions = (adoptionList || []).sort((a, b) => {
+        const isFinalA = ["COMPLETED", "REJECTED", "CANCELLED"].includes(a.status.toUpperCase());
+        const isFinalB = ["COMPLETED", "REJECTED", "CANCELLED"].includes(b.status.toUpperCase());
+        if (isFinalA && !isFinalB) return 1;
+        if (!isFinalA && isFinalB) return -1;
+        return 0;
+      });
+
+      setAdoptions(sortedAdoptions);
+      setRescues(rescueList || []);
+      setNotifications(notiList || []);
+      setOrders(orderList || []);
+
+      if (sortedAdoptions.length > 0) {
+        const targetAdoptionId = safeGetAdoptionId(sortedAdoptions[0]);
+
+        if (targetAdoptionId > 0) {
+          apiFetch(`/adoption_meetings/adoption/${targetAdoptionId}`)
+            .then((res: any) => {
+              const meetingsArray = Array.isArray(res) ? res : res ? [res] : [];
+              
+              if (meetingsArray.length > 0) {
+                const sortedMeetings = [...meetingsArray].sort((m1: any, m2: any) => {
+                  const priority: Record<string, number> = { "RESCHEDULED": 1, "SCHEDULED": 2, "CONFIRMED": 3, "CANCELLED": 4 };
+                  return (priority[m1.status.toUpperCase()] || 5) - (priority[m2.status.toUpperCase()] || 5);
+                });
+                setLatestMeeting(sortedMeetings[0]);
+              }
+            })
+            .catch((e) => console.log("No interview schedule found for this adoption id", e));
+        }
+      }
+    }).catch((err) => {
+      console.error("Dashboard global handler error:", err);
     });
   }, [user]);
 
@@ -40,9 +111,10 @@ export function AccountDashboardPage() {
   const unread = notifications.filter((n) => !n.is_read).length;
   const cartSubtotal = getCartSubtotal(user.userId);
 
-  const activeAdoptions = adoptions.filter((a) => !["COMPLETED", "REJECTED", "CANCELLED"].includes(a.status));
+  const activeAdoptions = adoptions.filter((a) => !["COMPLETED", "REJECTED", "CANCELLED"].includes(a.status.toUpperCase()));
   const latestOrder = orders[0];
-  const latestAdoption = adoptions[0];
+  const latestAdoption = adoptions[0]; 
+  const latestRescue = rescues[0]; 
   const recentNotifications = notifications.slice(0, 3);
 
   const cards = [
@@ -128,8 +200,33 @@ export function AccountDashboardPage() {
           </div>
         </div>
 
-        {latestOrder || latestAdoption || recentNotifications.length > 0 ? (
+        {latestOrder || latestAdoption || recentNotifications.length > 0 || latestMeeting || latestRescue ? (
           <div className="space-y-3">
+            
+            {/* 1. Interview Schedule Notification Banner */}
+            {latestMeeting && latestAdoption && (
+              <Link
+                to={`/account/adoptions/${safeGetAdoptionId(latestAdoption)}`}
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-orange-50/40 p-4 transition-all hover:border-orange-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                    <CalendarClock size={22} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-orange-600">Interview Schedule Update</p>
+                    <p className="font-semibold text-[#2c5f51]">Interview for pet: {latestAdoption.pet_name}</p>
+                    <p className="soft-subtext text-sm mt-0.5">
+                      Status: <span className="font-bold uppercase text-orange-600">{latestMeeting.status}</span> · Time: {new Date(latestMeeting.meetingDatetime).toLocaleString('en-US')}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-[#f6931d] whitespace-nowrap">
+                  View Appointment <ChevronRight size={14} />
+                </span>
+              </Link>
+            )}
+
             {latestOrder ? (
               <Link
                 to={`/account/orders/${latestOrder.order_id}`}
@@ -139,7 +236,7 @@ export function AccountDashboardPage() {
                   <p className="text-xs font-medium uppercase tracking-wide text-[#a8b8ae]">Latest order</p>
                   <p className="font-semibold text-[#2c5f51]">Order #{latestOrder.order_id}</p>
                   <p className="soft-subtext text-sm">
-                    {latestOrder.created_at} · {formatPublicEnum(latestOrder.order_status)}
+                    {latestOrder.created_at} · {formatEnumLabel(latestOrder.order_status)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -149,9 +246,10 @@ export function AccountDashboardPage() {
               </Link>
             ) : null}
 
-            {latestAdoption ? (
+            {/* 🌟 ĐÃ KHẮC PHỤC LẶP: Thêm điều kiện !latestMeeting để ẩn thẻ này khi banner cam đang hiện */}
+            {latestAdoption && !latestMeeting ? (
               <Link
-                to={`/account/adoptions/${latestAdoption.adoption_id}`}
+                to={`/account/adoptions/${safeGetAdoptionId(latestAdoption)}`}
                 className="flex items-center gap-4 rounded-2xl border border-[#2c5f51]/[0.06] p-4 transition-colors hover:border-[#f6931d]/25"
               >
                 <img src={latestAdoption.pet_image} alt="" className="h-14 w-14 rounded-xl object-cover" />
@@ -159,7 +257,28 @@ export function AccountDashboardPage() {
                   <p className="text-xs font-medium uppercase tracking-wide text-[#a8b8ae]">Latest adoption</p>
                   <p className="font-semibold text-[#2c5f51]">{latestAdoption.pet_name}</p>
                   <p className="soft-subtext text-sm">
-                    {latestAdoption.application_code} · {formatPublicEnum(latestAdoption.status)}
+                    {latestAdoption.application_code} · {formatEnumLabel(latestAdoption.status)}
+                  </p>
+                </div>
+                <ChevronRight className="shrink-0 text-gray-300" size={18} />
+              </Link>
+            ) : null}
+
+            {latestRescue ? (
+              <Link
+                to={`/account/rescue-reports`}
+                className="flex items-center gap-4 rounded-2xl border border-[#2c5f51]/[0.06] p-4 transition-colors hover:border-[#f6931d]/25"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#e6f2ec] text-[#3d6b5c] shrink-0">
+                  <LifeBuoy size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#a8b8ae]">Latest rescue report</p>
+                  <p className="font-semibold text-[#2c5f51] truncate">
+                    Report #{latestRescue.id || "Unknown"}
+                  </p>
+                  <p className="soft-subtext text-sm">
+                    {formatEnumLabel(latestRescue.status)}
                   </p>
                 </div>
                 <ChevronRight className="shrink-0 text-gray-300" size={18} />

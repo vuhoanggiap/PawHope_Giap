@@ -104,10 +104,12 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
         return true;
       },
       register: async (input) => {
-        const u = await registerPublic(input);
-        if (!u) return false;
-        setUser(u);
-        void refreshCounts(u);
+        const isSuccess = await registerPublic(input);
+        if (!isSuccess) return false;
+        
+        // 🎯 ĐÃ SỬA CHỖ NÀY:
+        // API trả về boolean. Đăng ký xong chỉ cần trả về true.
+        // KHÔNG gán setUser(isSuccess) để tránh lỗi sập dữ liệu (crash).
         return true;
       },
       logout: () => {

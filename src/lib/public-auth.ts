@@ -1,7 +1,9 @@
-import { loginWithEmail, registerAccount } from "@/lib/api/auth-api";
+import { loginWithEmail} from "@/lib/api/auth-api";
 import { USE_MOCK } from "@/lib/api-client";
 import { updateUser } from "@/lib/api/users-api";
 import { clearAuthToken, setAuthToken } from "@/lib/auth-session";
+import { getAuthToken } from "@/lib/auth-session";
+import { API_BASE } from "@/lib/api-client";
 
 export type PublicRole = "USER";
 
@@ -128,45 +130,46 @@ export async function registerPublic(input: {
   fullName: string;
   email: string;
   phone?: string;
-}): Promise<PublicUser | null> {
-  const username = input.username.trim().toLowerCase();
-  const email = input.email.trim().toLowerCase();
-  if (!username || input.password.length < 6) return null;
-
-  if (!USE_MOCK) {
-    if (username.length < 5) return null;
-    try {
-      await registerAccount({
-        username,
-        password: input.password,
-        fullName: input.fullName.trim(),
-        email,
-        phone: input.phone?.trim(),
-      });
-      return loginPublic(email, input.password);
-    } catch {
-      return null;
+}): Promise<boolean> { // Đổi kiểu trả về thành Promise<boolean>
+  try {
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
-  }
 
-  const users = loadRegisteredUsers();
-  if (users.some((u) => u.username.toLowerCase() === username || u.email.toLowerCase() === email)) {
-    return null;
+    // GỌI FETCH TRỰC TIẾP ĐỂ KIỂM SOÁT HOÀN TOÀN KẾT QUẢ
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(input),
+    });
+
+    // 🎯 CHÌA KHÓA: Chỉ cần HTTP Status là 2xx (thành công) thì coi như xong!
+    // Bỏ qua việc kiểm tra nội dung JSON rỗng hay không.
+    if (res.ok) {
+      return true;
+    }
+
+    // Nếu có lỗi HTTP (ví dụ 400 Bad Request do trùng lặp)
+    let errorMessage = "Đăng ký thất bại!";
+    try {
+      const errorBody = await res.json();
+      errorMessage = errorBody?.messenge || errorMessage;
+    } catch {
+      // Bỏ qua nếu không parse được lỗi
+    }
+    
+    console.error("Server báo lỗi:", errorMessage);
+    return false;
+
+  } catch (error) {
+    console.error("Lỗi mạng hoặc hệ thống:", error);
+    return false;
   }
-  const user: StoredUser = {
-    userId: Date.now(),
-    username,
-    fullName: input.fullName.trim(),
-    email,
-    phone: input.phone?.trim(),
-    role: "USER",
-    password: input.password,
-  };
-  users.push(user);
-  saveRegisteredUsers(users);
-  const { password: _, ...session } = user;
-  saveSession(session);
-  return session;
 }
 
 export function getStoredPublicUser(): PublicUser | null {

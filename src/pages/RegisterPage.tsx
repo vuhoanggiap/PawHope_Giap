@@ -17,23 +17,35 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
-    const fd = new FormData(e.currentTarget);
-    
-    const ok = await register({
-      username: String(fd.get("username") || ""),
-      password: String(fd.get("password") || ""),
-      fullName: String(fd.get("fullName") || ""),
-      email: String(fd.get("email") || ""),
-      phone: String(fd.get("phone") || "") || undefined,
-    });
-    
-    if (!ok) {
-      setError("Could not create account...");
-      return;
+    setError(""); // Clear previous errors on each new submission
+
+    try {
+      const fd = new FormData(e.currentTarget);
+
+      // Call registration API with trimmed input data
+      const ok = await register({
+        username: String(fd.get("username") || "").trim(),
+        password: String(fd.get("password") || ""),
+        fullName: String(fd.get("fullName") || "").trim(),
+        email: String(fd.get("email") || "").trim(),
+        phone: String(fd.get("phone") || "").trim() || undefined,
+      });
+
+      // If API returns false without throwing an error
+      if (!ok) {
+        setError("Registration failed. The email or username may already exist.");
+        return;
+      }
+
+      // SUCCESS: Show notification and redirect user to login page
+      alert("🎉 Account created successfully! Please sign in.");
+      navigate("/login");
+
+    } catch (err: any) {
+      // HANDLE HIDDEN ERRORS: Display clear error messages
+      console.error("Registration error:", err);
+      setError(err.message || "An error occurred during registration!");
     }
-    alert("Account created! Please sign in.");
-    navigate("/login"); 
   };
 
   return (
@@ -59,32 +71,57 @@ export function RegisterPage() {
                   {error}
                 </p>
               ) : null}
+
               <div>
                 <label className="text-sm font-medium">Full name</label>
-                <Input name="fullName" required className="mt-1" placeholder="Enter your full name" />
+                <Input name="fullName" required className="mt-1" />
               </div>
+
               <div>
                 <label className="text-sm font-medium">Username</label>
-                <Input name="username" required minLength={3} className="mt-1" autoComplete="username" placeholder="Enter your username" />
+                <Input
+                  name="username"
+                  required
+                  minLength={3}
+                  className="mt-1"
+                  autoComplete="username"
+                />
               </div>
+
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <Input name="email" type="email" required className="mt-1" placeholder="Enter your email" />
+                <Input name="email" type="email" required className="mt-1" />
               </div>
+
               <div>
                 <label className="text-sm font-medium">Phone (optional)</label>
-                <Input name="phone" placeholder="Enter your phone number" className="mt-1" />
+                <Input name="phone" placeholder="+84 ..." className="mt-1" />
               </div>
+
               <div>
                 <label className="text-sm font-medium">Password</label>
-                <Input name="password" type="password" required minLength={6} className="mt-1" placeholder="Enter your password" />
+                <Input
+                  name="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  className="mt-1"
+                />
               </div>
-              <Button type="submit" className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11">
+
+              <Button
+                type="submit"
+                className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-11"
+              >
                 Create account
               </Button>
+
               <p className="text-center text-sm text-gray-500">
                 Already registered?{" "}
-                <Link to="/login" className="text-[#f6931d] font-bold hover:underline">
+                <Link
+                  to="/login"
+                  className="text-[#f6931d] font-bold hover:underline"
+                >
                   Sign in
                 </Link>
               </p>

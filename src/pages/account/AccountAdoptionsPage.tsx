@@ -16,12 +16,41 @@ export function AccountAdoptionsPage() {
 
   if (!user) return null;
 
+  // --- DEFINE STATUS SORTING PRIORITY ---
+  const getStatusPriority = (status: string) => {
+    switch (status) {
+      case "PENDING":
+      case "SUBMITTED":
+        return 1; // 1. Active/Pending applications stay at the top
+      case "APPROVED":
+      case "COMPLETED":
+        return 2; // 2. Approved or completed applications in the middle
+      case "REJECTED":
+      case "CANCELLED":
+        return 3; // 3. Rejected or cancelled applications at the bottom
+      default:
+        return 1;
+    }
+  };
+
+  // --- PROCESS AND SORT ADOPTIONS DATA ---
+  const sortedAdoptions = [...adoptions].sort((a, b) => {
+    const priorityA = getStatusPriority(a.status);
+    const priorityB = getStatusPriority(b.status);
+
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    // If statuses fall into the same group, sort by newest apply_date first
+    return new Date(b.apply_date).getTime() - new Date(a.apply_date).getTime();
+  });
+
   return (
     <div className="soft-card p-6 md:p-8">
       <h2 className="soft-heading text-lg mb-1">My adoptions</h2>
       <p className="soft-subtext text-sm mb-6">Track each application from review to handover.</p>
 
-      {adoptions.length === 0 ? (
+      {sortedAdoptions.length === 0 ? (
         <div className="text-center py-12 soft-subtext">
           <p>No applications yet.</p>
           <Link to="/adopt" className="inline-block mt-4 text-[#f6931d] font-medium hover:underline">
@@ -30,7 +59,7 @@ export function AccountAdoptionsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {adoptions.map((a) => (
+          {sortedAdoptions.map((a) => (
             <Link
               key={a.adoption_id}
               to={`/account/adoptions/${a.adoption_id}`}

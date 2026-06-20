@@ -1,9 +1,8 @@
 import { clearAuthToken, getAuthToken } from "@/lib/auth-session";
 
 /** Spring Boot API — set VITE_API_URL and VITE_USE_MOCK=false when backend is live. */
-export const API_BASE =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8080/api/v1";
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+export const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8082/api/v1";
+export const USE_MOCK = false;
 
 /** Backend success code (StatusCode.SUCCESS). */
 export const API_SUCCESS_CODE = "0000";
@@ -31,6 +30,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
+  
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -44,27 +44,47 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     clearAuthToken();
   }
 
-  let body: ApiResponse<T> | null = null;
-  try {
-    body = (await res.json()) as ApiResponse<T>;
-  } catch {
-    if (!res.ok) {
-      throw new ApiError(`API ${res.status}`, undefined, res.status);
+  // 1. Đọc dữ liệu thô (Text) để tránh sập (Crash) khi parse JSON
+  const rawText = await res.text();
+  let body: any = null;
+
+  if (rawText) {
+    try {
+      body = JSON.parse(rawText);
+    } catch (e) {
+      // Nếu không phải JSON mà HTTP 200 OK -> Trả thẳng về chuỗi thô
+      if (res.ok) return rawText as any;
+      throw new ApiError("Lỗi định dạng dữ liệu từ Server", undefined, res.status);
     }
-    throw new ApiError("Invalid JSON response", undefined, res.status);
+  } else if (res.ok) {
+    // Nếu Backend trả về rỗng hoàn toàn nhưng 200 OK -> Tính là true
+    return true as any; 
   }
 
+  // 2. Bắt các lỗi HTTP Status đỏ (400, 500)
   if (!res.ok) {
-    throw new ApiError(
-      body?.messenge ?? `API ${res.status}`,
-      body?.code,
-      res.status
-    );
+    throw new ApiError(body?.messenge ?? `API Error ${res.status}`, body?.code, res.status);
   }
 
-  if (body.code !== API_SUCCESS_CODE) {
-    throw new ApiError(body.messenge ?? "Request failed", body.code, res.status);
+  // 3. Xử lý thông minh cấu trúc ResponseHandler của Spring Boot
+  if (body && typeof body === "object" && "code" in body) {
+    // Tập hợp các mã có thể coi là thành công
+    const successCodes = [API_SUCCESS_CODE, "200", "0", "SUCCESS"];
+    
+    // Nếu mã Code không nằm trong danh sách thành công -> Báo lỗi
+    if (!successCodes.includes(String(body.code).toUpperCase())) {
+      throw new ApiError(body.messenge ?? "Yêu cầu bị từ chối", String(body.code), res.status);
+    }
+
+    // 🎯 ĐÂY LÀ CHÌA KHÓA: Trị tận gốc bẫy "data: null"
+    // Nếu Backend thành công nhưng data rỗng, ép trả về true để Context React không bị nhận false oan uổng
+    if (body.data === null || body.data === undefined) {
+      return true as any;
+    }
+
+    return body.data as T;
   }
 
-  return body.data;
+  // 4. Nếu là cấu trúc lạ, trả về nguyên bản
+  return body as T;
 }
