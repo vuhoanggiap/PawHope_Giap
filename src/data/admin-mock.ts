@@ -710,9 +710,27 @@ export const mockEmailLogs = [
 ];
 
 export const mockShifts = [
-  { shift_id: 1, shift_name: "Morning", start_time: "08:00", end_time: "12:00", description: "Feeding & kennel cleaning" },
-  { shift_id: 2, shift_name: "Afternoon", start_time: "13:00", end_time: "17:00", description: "Walks & adoption events" },
-  { shift_id: 3, shift_name: "Evening", start_time: "17:00", end_time: "21:00", description: "Medication & closing checks" },
+  {
+    shift_id: 1,
+    shift_name: "Morning",
+    start_time: "08:00",
+    end_time: "12:00",
+    crosses_midnight: false,
+  },
+  {
+    shift_id: 2,
+    shift_name: "Afternoon",
+    start_time: "12:00",
+    end_time: "16:00",
+    crosses_midnight: false,
+  },
+  {
+    shift_id: 3,
+    shift_name: "Evening",
+    start_time: "16:00",
+    end_time: "20:00",
+    crosses_midnight: false,
+  },
 ];
 
 export const mockScheduleWindows = [

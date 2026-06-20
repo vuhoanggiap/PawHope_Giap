@@ -23,20 +23,35 @@ export function AdminDashboardPage() {
 
   const [s, setS] = useState(defaultStats);
   
-  useEffect(() => {
-    void loadDashboardStats().then(setS);
-  }, []);
+useEffect(() => {
+    // Chỉ gọi API thống kê nếu user không phải là VOLUNTEER (hoặc là ADMIN)
+    if (role !== "VOLUNTEER") {
+      void loadDashboardStats().then(setS);
+    }
+  }, [role]);
 
-  // 2. Tối ưu kết nối Spring: Thêm type cho res và bắt lỗi mạng
   useEffect(() => {
+    // Chặn Volunteer gọi API /today vì Backend của bạn hiện chưa viết Endpoint này
+    if (role === "VOLUNTEER") {
+      setTodayFollowups([]); // Set danh sách rỗng cho volunteer để giao diện hiển thị "No follow-ups scheduled for today."
+      return;
+    }
+
     apiFetch("/adoption_followups/today")
       .then((res: any) => {
         if (res && res.data) {
           setTodayFollowups(res.data);
         }
       })
-      .catch((err) => console.error("Lỗi khi tải danh sách follow-up hôm nay:", err));
-  }, []);
+      .catch((err) => {
+        // Nuốt lỗi 403 âm thầm nếu vô tình bị chặn, tránh làm văng màn hình lỗi 500
+        if (err?.status === 403 || err?.message?.includes('403')) {
+          console.warn("Bỏ qua tải follow-up do không đủ quyền truy cập.");
+          return;
+        }
+        console.error("Lỗi khi tải danh sách follow-up hôm nay:", err);
+      });
+  }, [role]);
 
   const statCards = getDashboardStatCards(s, role);
   const quickActions = getDashboardQuickActions(s.notifications.unread, role);

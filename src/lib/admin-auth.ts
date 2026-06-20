@@ -1,5 +1,5 @@
 import { loginWithEmail } from "@/lib/api/auth-api";
-import { ApiError, API_BASE, USE_MOCK } from "@/lib/api-client";
+import { ApiError, USE_MOCK } from "@/lib/api-client";
 import { clearAuthToken, setAuthToken } from "@/lib/auth-session";
 
 export type StaffRole = "ADMIN" | "VOLUNTEER";
@@ -68,7 +68,7 @@ export async function loginAdmin(
   if (USE_MOCK) {
     const account = DEMO_ACCOUNTS[key];
     if (!account || account.password !== password) return null;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(account.user));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(account.user));
     return account.user;
   }
 
@@ -89,19 +89,19 @@ export async function loginAdmin(
       email: res.email,
       role,
     };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
     return user;
   } catch (e) {
     if (e instanceof ApiError) throw e;
     throw new ApiError(
-      `Cannot reach API at ${API_BASE}. Start Spring Boot and MySQL, then try again.`
+      `Lost connection to the server. Please try again in a few minutes.`
     );
   }
 }
 
 export function getStoredAdmin(): AdminUser | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AdminUser;
   } catch {
@@ -110,6 +110,6 @@ export function getStoredAdmin(): AdminUser | null {
 }
 
 export function clearAdminSession() {
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
   clearAuthToken();
 }

@@ -452,11 +452,14 @@ export async function loadVolunteerScheduleBundle() {
     return { windows: mockScheduleWindows, shifts: mockShifts, schedules: mockVolunteerSchedules };
   }
   await loadUsers();
+  
+  // 🟢 BỌC AN TOÀN TRÁNH LỖI 403 KHI VOLUNTEER TRUY CẬP:
   const [windows, shifts, schedules] = await Promise.all([
-    fetchScheduleWindows(),
-    fetchShifts(),
-    fetchVolunteerSchedules(),
+    fetchScheduleWindows().catch(() => []),
+    fetchShifts().catch(() => []),
+    fetchVolunteerSchedules().catch(() => []),
   ]);
+  
   cache.windows = windows.map(mapScheduleWindow);
   cache.shifts = shifts.map(mapShift);
   const shiftMap = new Map(cache.shifts.map((s) => [s.shift_id, s.shift_name]));
@@ -487,14 +490,14 @@ export async function loadDashboardStats() {
   if (USE_MOCK) return mockDashboardStats;
   const [rescues, pets, adoptions, donations, orders, products, volunteers, notifications] =
     await Promise.all([
-      loadRescueReports(),
-      loadAdminPets(),
-      loadAdoptions(),
-      loadDonations(),
-      loadOrders(),
+      loadRescueReports().catch(() => []),
+      loadAdminPets().catch(() => []),
+      loadAdoptions().catch(() => []),
+      loadDonations().catch(() => []),
+      loadOrders().catch(() => []),
       fetchAllProducts().catch(() => []),
-      loadVolunteerApplications(),
-      loadNotifications(),
+      loadVolunteerApplications().catch(() => []),
+      loadNotifications().catch(() => []),
     ]);
 
   return {
@@ -582,37 +585,45 @@ export async function loadMyScheduleBundle(userId: number) {
     return { windows, shifts, weeks, shiftsRegistered: myShifts };
   }
 
-  const weekDtos = await fetchScheduleWeeks();
-  const weeks: MyScheduleWeekRow[] = weekDtos
-    .filter((w) => w.userId === userId)
-    .map((w) => ({
-      week_id: w.weekId,
-      window_id: w.windowId ?? 0,
-      user_id: w.userId ?? userId,
-      status: w.status,
-      week_start: formatApiDate(w.weekStartDate),
-      week_end: formatApiDate(w.weekEndDate),
-    }));
+  // 🟢 BỌC BẮT LỖI AN TOÀN CHỐNG SẬP 500 CHO TÀI KHOẢN MỚI
+  const weekDtos = await fetchScheduleWeeks().catch(() => []);
+  const weeks: MyScheduleWeekRow[] = Array.isArray(weekDtos) 
+    ? weekDtos
+        .filter((w) => w.userId === userId)
+        .map((w) => ({
+          week_id: w.weekId,
+          window_id: w.windowId ?? 0,
+          user_id: w.userId ?? userId,
+          status: w.status,
+          week_start: formatApiDate(w.weekStartDate),
+          week_end: formatApiDate(w.weekEndDate),
+        }))
+    : [];
 
   const weekById = new Map(weeks.map((w) => [w.week_id, w]));
-  const rawSchedules = await fetchVolunteerSchedules();
-  const shiftsRegistered: MyScheduleShiftRow[] = rawSchedules
-    .filter((s) => s.userId === userId)
-    .map((s) => {
-      const week = weekById.get(s.weekId ?? 0);
-      return {
-        schedule_id: s.scheduleId,
-        week_id: s.weekId ?? 0,
-        user_id: s.userId ?? userId,
-        shift_id: s.shiftId ?? 0,
-        shift_name: shiftMap.get(s.shiftId ?? 0) ?? "Shift",
-        work_date: formatApiDate(s.workDate),
-        window_id: week?.window_id ?? 0,
-      };
-    });
+  const rawSchedules = await fetchVolunteerSchedules().catch(() => []);
+  const shiftsRegistered: MyScheduleShiftRow[] = Array.isArray(rawSchedules)
+    ? rawSchedules
+        .filter((s) => s.userId === userId)
+        .map((s) => {
+          const week = weekById.get(s.weekId ?? 0);
+          return {
+            schedule_id: s.scheduleId,
+            week_id: s.weekId ?? 0,
+            user_id: s.userId ?? userId,
+            shift_id: s.shiftId ?? 0,
+            shift_name: shiftMap.get(s.shiftId ?? 0) ?? "Shift",
+            work_date: formatApiDate(s.workDate),
+            window_id: week?.window_id ?? 0,
+          };
+        })
+    : [];
 
   return { windows, shifts, weeks, shiftsRegistered };
 }
+
+// 🟢 TẠO BÍ DANH HÀM (ALIAS) ĐỂ KHỚP 100% VỚI FRONTEND ĐANG GỌI
+export const loadMyScheduleBundleReal = loadMyScheduleBundle;
 
 export async function registerMyScheduleWeek(windowId: number, userId: number) {
   if (USE_MOCK) {
