@@ -12,6 +12,8 @@ import {
 } from "@/data/public-mock";
 import { loadAdoptionById } from "@/lib/public-store";
 import { ArrowLeft, CalendarClock, CalendarDays, X, CheckCircle, Clock } from "lucide-react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 const TIME_SHIFTS = [
   { id: "Morning", label: "08:30 - 11:30", startTime: "08:30" },
@@ -37,13 +39,17 @@ export function AccountAdoptionDetailPage() {
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleShift, setRescheduleShift] = useState("");
 
+  // State phục vụ riêng cho Modal Đổi lịch Handover
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [handoverRescheduleDate, setHandoverRescheduleDate] = useState("");
+  const [handoverRescheduleShift, setHandoverRescheduleShift] = useState("");
+
   const [userFeedback, setUserFeedback] = useState("");
   const [userPhotoUrl, setUserPhotoUrl] = useState("");
 
   const loadWorkflowSchedules = () => {
     if (!id) return;
     
-    // 1. Tải dữ liệu lịch phỏng vấn gặp mặt
     apiFetch(`/adoption_meetings/adoption/${id}`)
       .then((meetings: any) => {
         const meetingsArray = Array.isArray(meetings) ? meetings : meetings?.data ? meetings.data : meetings ? [meetings] : [];
@@ -54,7 +60,6 @@ export function AccountAdoptionDetailPage() {
       })
       .catch((e) => console.log("No meeting scheduled yet", e));
 
-    // 2. Tải dữ liệu lịch hẹn bàn giao nhận nuôi
     apiFetch(`/adoption_handovers/adoption/${id}`)
       .then((handovers: any) => {
         const handoversArray = Array.isArray(handovers) ? handovers : handovers?.data ? handovers.data : handovers ? [handovers] : [];
@@ -65,7 +70,6 @@ export function AccountAdoptionDetailPage() {
       })
       .catch((e) => console.log("No handover configured yet", e));
 
-    // 3. Tải dữ liệu lịch trình theo dõi sau nhận nuôi (Follow-up)
     apiFetch(`/adoption_followups/adoption/${id}`)
       .then((followups: any) => {
         const followupsArray = Array.isArray(followups) ? followups : followups?.data ? followups.data : followups ? [followups] : [];
@@ -80,6 +84,32 @@ export function AccountAdoptionDetailPage() {
       })
       .catch((e) => console.log("No follow-up records found", e));
   };
+
+  // 🌟 ĐỒNG BỘ WEBSOCKET: Tự động cập nhật UI tức thì khi Admin ấn Approve & Confirm
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = new SockJS("http://localhost:8082/ws"); // Điều chỉnh đúng port backend của bạn
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log("Connected to WebSocket Broker successfully!");
+        stompClient.subscribe(`/topic/adoption/${id}`, (message: any) => { // 🌟 Thêm kiểu ": any" ở đây
+        if (message.body === "HANDOVER_UPDATED") {
+          console.log("Received notification from admin. Refreshing workflow...");
+          loadWorkflowSchedules(); 
+        }
+      });
+      },
+    });
+
+    stompClient.activate();
+
+    return () => {
+      stompClient.deactivate();
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -128,16 +158,38 @@ export function AccountAdoptionDetailPage() {
     }
   };
 
+  const handleSubmitHandoverReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!handoverInfo) return;
+    const targetHandoverId = handoverInfo.handoverId || handoverInfo.handover_id || handoverInfo.id;
+    if (!targetHandoverId) return;
+
+    setIsSubmitting(true);
+    const shiftLabel = TIME_SHIFTS.find(s => s.id === handoverRescheduleShift)?.label;
+    const proposedText = `Customer requested handover reschedule:\nDate: ${handoverRescheduleDate}\nTime: ${handoverRescheduleShift} (${shiftLabel})`;
+
+    try {
+      // 🌟 FIXED PATH: Sử dụng đúng định dạng url gạch dưới và không có tiền tố lặp thừa
+      await apiFetch(`/adoption_handovers/${targetHandoverId}/reschedule-request?note=${encodeURIComponent(proposedText)}`, {
+        method: "PATCH",
+      });
+      setHandoverInfo((prev: any) => prev ? { ...prev, status: "RESCHEDULED" } : null);
+      setShowHandoverModal(false);
+      setSuccessMsg("Handover reschedule request submitted successfully!");
+      loadWorkflowSchedules();
+    } catch (error) {
+      alert("Failed to submit handover reschedule request.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleUserSubmitFollowupReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!followupInfo || !userFeedback) return;
 
     const targetFollowupId = followupInfo.followupId || followupInfo.followup_id || followupInfo.id;
-    
-    if (!targetFollowupId) {
-      alert("Error: Follow-up ID not found.");
-      return;
-    }
+    if (!targetFollowupId) return;
 
     setIsSubmitting(true);
     try {
@@ -163,10 +215,10 @@ export function AccountAdoptionDetailPage() {
     }
   };
 
-  const isSlotDisabled = (startTimeStr: string) => {
-    if (!rescheduleDate) return false;
+  const isSlotDisabled = (dateStr: string, startTimeStr: string) => {
+    if (!dateStr) return false;
     const now = new Date();
-    const selectedDate = new Date(rescheduleDate);
+    const selectedDate = new Date(dateStr);
     if (selectedDate.getDate() !== now.getDate() || selectedDate.getMonth() !== now.getMonth() || selectedDate.getFullYear() !== now.getFullYear()) return false;
     const [hours, minutes] = startTimeStr.split(':').map(Number);
     const slotTime = new Date(); slotTime.setHours(hours, minutes, 0, 0);
@@ -176,12 +228,22 @@ export function AccountAdoptionDetailPage() {
   useEffect(() => {
     if (rescheduleShift) {
       const selectedShiftObj = TIME_SHIFTS.find(s => s.id === rescheduleShift);
-      if (selectedShiftObj && isSlotDisabled(selectedShiftObj.startTime)) {
+      if (selectedShiftObj && isSlotDisabled(rescheduleDate, selectedShiftObj.startTime)) {
         setRescheduleShift("");
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescheduleDate]);
+
+  useEffect(() => {
+    if (handoverRescheduleShift) {
+      const selectedShiftObj = TIME_SHIFTS.find(s => s.id === handoverRescheduleShift);
+      if (selectedShiftObj && isSlotDisabled(handoverRescheduleDate, selectedShiftObj.startTime)) {
+        setHandoverRescheduleShift("");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoverRescheduleDate]);
 
   const handleSubmitReschedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +271,7 @@ export function AccountAdoptionDetailPage() {
   const failed = adoption.status === "REJECTED" || adoption.status === "CANCELLED";
   const activeIndex = adoptionStatusIndex(adoption.status);
   const currentMeetingStatus = meetingInfo?.status?.toUpperCase() || "";
+  const currentHandoverStatus = handoverInfo?.status?.toUpperCase() || "";
   const currentFollowupStatus = followupInfo?.status?.toUpperCase() || "";
 
   return (
@@ -238,8 +301,8 @@ export function AccountAdoptionDetailPage() {
 
         {/* --- BANNER 1: LỊCH HẸN PHỎNG VẤN GẶP MẶT --- */}
         {meetingInfo && (
-          <div className="mb-4 p-5 bg-[#2c5f51]/10 border border-[#2c5f51]/30 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="space-y-2 text-sm text-[#3d6b5c]">
+          <div className="mb-4 p-5 bg-[#2c5f51]/10 border border-[#2c5f51]/30 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="space-y-2 text-sm text-[#3d6b5c] flex-1">
               <h3 className="font-bold text-[#2c5f51] flex items-center gap-2 text-base">
                 <CalendarClock size={20} className="text-[#f6931d]" /> Interview / Assessment Schedule
               </h3>
@@ -256,9 +319,9 @@ export function AccountAdoptionDetailPage() {
             </div>
 
             {currentMeetingStatus === "SCHEDULED" ? (
-              <div className="flex gap-2 w-full md:w-auto">
-                <button disabled={isSubmitting} onClick={handleConfirmAttend} className="flex-1 md:flex-none px-4 py-2 bg-[#2c5f51] hover:bg-green-800 text-white font-semibold rounded-xl text-sm transition-all disabled:opacity-50">{isSubmitting ? "Confirming..." : "Confirm Attend"}</button>
-                <button disabled={isSubmitting} onClick={() => setShowModal(true)} className="flex-1 md:flex-none px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold rounded-xl text-sm transition-all disabled:opacity-50">Reschedule Request</button>
+              <div className="flex flex-wrap gap-2 w-full lg:w-auto shrink-0">
+                <button disabled={isSubmitting} onClick={handleConfirmAttend} className="flex-1 lg:flex-none px-4 py-2 bg-[#2c5f51] hover:bg-green-800 text-white font-semibold rounded-xl text-sm transition-all disabled:opacity-50 white-space-nowrap">{isSubmitting ? "Confirming..." : "Confirm Attend"}</button>
+                <button disabled={isSubmitting} onClick={() => setShowModal(true)} className="flex-1 lg:flex-none px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold rounded-xl text-sm transition-all disabled:opacity-50 white-space-nowrap">Reschedule Request</button>
               </div>
             ) : currentMeetingStatus === "CONFIRMED" ? (
               <div className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold shadow-sm"><CheckCircle size={16} /> Schedule Confirmed (Locked)</div>
@@ -270,7 +333,7 @@ export function AccountAdoptionDetailPage() {
           </div>
         )}
 
-        {/* 🌟 BANNER ĐỢI ADMIN TẠO LỊCH BÀN GIAO (BƠM THÊM ĐỂ CHỐNG TREO UI) */}
+        {/* --- BANNER ĐỢI ADMIN TẠO LỊCH BÀN GIAO --- */}
         {!handoverInfo && (adoption.status === "APPROVED" || currentMeetingStatus === "COMPLETED") && (
           <div className="mb-4 p-5 bg-sky-50 border border-sky-200 rounded-2xl flex items-center gap-3 animate-fade-in">
             <Clock className="text-sky-500 shrink-0" size={24} />
@@ -283,8 +346,8 @@ export function AccountAdoptionDetailPage() {
 
         {/* --- BANNER 2: LỊCH BÀN GIAO ĐÓN VẬT NUÔI --- */}
         {handoverInfo && (
-          <div className="mb-4 p-5 bg-sky-50 border border-sky-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
-            <div className="space-y-2 text-sm text-sky-800">
+          <div className="mb-4 p-5 bg-sky-50 border border-sky-200 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 animate-fade-in">
+            <div className="space-y-2 text-sm text-sky-800 flex-1">
               <h3 className="font-bold text-sky-900 flex items-center gap-2 text-base">
                 <CalendarClock size={20} className="text-[#f6931d]" /> Pet Handover & Delivery Schedule
               </h3>
@@ -294,17 +357,41 @@ export function AccountAdoptionDetailPage() {
               <p><strong>Location:</strong> {handoverInfo.pickupLocation || handoverInfo.pickup_location}</p>
             </div>
 
-            {handoverInfo.adopterConfirmed || handoverInfo.adopter_confirmed ? (
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold shadow-sm"><CheckCircle size={16} /> Handover Confirmed by You</div>
-            ) : handoverInfo.status?.toUpperCase() === "COMPLETED" ? (
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold shadow-sm">✅ Handover Process Finished</div>
+            {/* 🌟 CHUẨN HÓA LOGIC RENDER: Tách nút Confirm và nút Đổi lịch biệt lập, cài chốt chặn bảo mật */}
+            {currentHandoverStatus === "SCHEDULED" || (currentHandoverStatus === "CONFIRMED" && !handoverInfo.adopterConfirmed && !handoverInfo.adopter_confirmed) ? (
+              <div className="flex flex-wrap gap-2 w-full lg:w-auto shrink-0">
+                
+                {/* Nút Confirm hiển thị khi Admin tạo lịch (SCHEDULED) hoặc khi Admin duyệt lịch đổi (CONFIRMED) */}
+                <button disabled={isSubmitting} onClick={handleConfirmHandover} className="flex-1 lg:flex-none px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-sm transition-all shadow-md white-space-nowrap">
+                  {isSubmitting ? "Processing..." : "Confirm This Schedule"}
+                </button>
+                
+                {/* 🌟 CHỐT CHẶN: Chỉ hiển thị nút yêu cầu đổi lịch khi trạng thái là SCHEDULED (Chưa từng đổi) */}
+                {currentHandoverStatus === "SCHEDULED" && (
+                  <button disabled={isSubmitting} onClick={() => setShowHandoverModal(true)} className="flex-1 lg:flex-none px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold rounded-xl text-sm transition-all disabled:opacity-50 white-space-nowrap">
+                    Reschedule Request
+                  </button>
+                )}
+                
+              </div>
+            ) : handoverInfo.adopterConfirmed || handoverInfo.adopter_confirmed ? (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold shadow-sm">
+                <CheckCircle size={16} /> Handover Confirmed by You (Waiting Delivery)
+              </div>
+            ) : currentHandoverStatus === "COMPLETED" ? (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold shadow-sm">
+                ✅ Handover Process Finished
+              </div>
             ) : (
-              <button disabled={isSubmitting} onClick={handleConfirmHandover} className="w-full md:w-auto px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-sm transition-all shadow-md">Confirm This Schedule</button>
+              /* Trạng thái RESCHEDULED: Khách đã đổi lịch, đang chờ Admin duyệt */
+              <div className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
+                ⏳ Awaiting Admin response for alternative handover schedule...
+              </div>
             )}
           </div>
         )}
 
-        {/* 🌟 BANNER ĐỢI ADMIN TẠO LỊCH THEO DÕI (BƠM THÊM ĐỂ CHỐNG TREO UI BƯỚC CUỐI) */}
+        {/* --- BANNER ĐỢI ADMIN TẠO LỊCH THEO DÕI --- */}
         {!followupInfo && (adoption.status === "COMPLETED" || handoverInfo?.status?.toUpperCase() === "COMPLETED") && (
           <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-fade-in">
             <Clock className="text-amber-500 shrink-0" size={24} />
@@ -357,7 +444,7 @@ export function AccountAdoptionDetailPage() {
         <StatusTimeline steps={adoptionProgressSteps.map((s) => ({ id: s.status, label: s.label, description: s.description }))} activeIndex={failed ? 0 : Math.max(activeIndex, 0)} failed={failed} failedLabel={adoption.status === "REJECTED" ? "This application was not approved." : "This application was cancelled."} />
       </div>
 
-      {/* --- MODAL CHỌN LỊCH MỚI --- */}
+      {/* --- MODAL CHỌN LỊCH MỚI PHÒNG VẤN (MEETING) --- */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl relative animate-scale-up">
@@ -373,7 +460,7 @@ export function AccountAdoptionDetailPage() {
                   <label className="block text-sm font-bold text-[#2c5f51] mb-2">Select Time Slot <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2">
                     {TIME_SHIFTS.map((shift) => {
-                      const disabled = isSlotDisabled(shift.startTime);
+                      const disabled = isSlotDisabled(rescheduleDate, shift.startTime);
                       return (
                         <button key={shift.id} type="button" disabled={disabled} onClick={() => setRescheduleShift(shift.id)} className={`py-2.5 px-2 text-center rounded-lg border transition-all ${disabled ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60" : rescheduleShift === shift.id ? "bg-[#f6931d] border-[#f6931d] text-white shadow-md" : "bg-white border-gray-200 text-gray-600 hover:border-[#f6931d]"}`}>
                           <div className="font-semibold text-sm">{shift.id} {disabled && "(Passed)"}</div>
@@ -387,6 +474,42 @@ export function AccountAdoptionDetailPage() {
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
                 <button type="submit" disabled={isSubmitting || !rescheduleShift} className="flex-1 py-3 bg-[#f6931d] hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">{isSubmitting ? "Sending..." : "Submit Proposal"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL CHỌN LỊCH MỚI BÀN GIAO (HANDOVER) --- */}
+      {showHandoverModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl relative animate-scale-up">
+            <button onClick={() => setShowHandoverModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            <div className="flex items-center gap-2 border-b pb-3 mb-4"><CalendarDays className="text-sky-600" /><h3 className="text-lg font-bold text-sky-900">Propose Alternative Handover Time</h3></div>
+            <form onSubmit={handleSubmitHandoverReschedule} className="space-y-4">
+              <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-sky-900 mb-2">Select Handover Date <span className="text-red-500">*</span></label>
+                  <input type="date" required min={new Date().toISOString().split('T')[0]} value={handoverRescheduleDate} onChange={(e) => setHandoverRescheduleDate(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-sky-600 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-sky-900 mb-2">Select Time Slot <span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TIME_SHIFTS.map((shift) => {
+                      const disabled = isSlotDisabled(handoverRescheduleDate, shift.startTime);
+                      return (
+                        <button key={`h-shift-${shift.id}`} type="button" disabled={disabled} onClick={() => setHandoverRescheduleShift(shift.id)} className={`py-2.5 px-2 text-center rounded-lg border transition-all ${disabled ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60" : handoverRescheduleShift === shift.id ? "bg-sky-600 border-sky-600 text-white shadow-md" : "bg-white border-gray-200 text-gray-600 hover:border-sky-600"}`}>
+                          <div className="font-semibold text-sm">{shift.id} {disabled && "(Passed)"}</div>
+                          <div className={`text-[11px] mt-0.5 ${disabled ? "text-gray-400" : handoverRescheduleShift === shift.id ? "text-sky-100" : "text-gray-400"}`}>{shift.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowHandoverModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmitting || !handoverRescheduleShift} className="flex-1 py-3 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">{isSubmitting ? "Sending..." : "Submit Proposal"}</button>
               </div>
             </form>
           </div>

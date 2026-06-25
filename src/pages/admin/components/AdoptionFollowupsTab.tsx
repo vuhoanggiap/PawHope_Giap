@@ -11,6 +11,8 @@ interface AdoptionFollowupsTabProps {
   applicantEmail: string; 
   petName: string;        
   followups: any[];
+  // 🌟 NÂNG CẤP: Bổ sung mảng handovers (lịch bàn giao) để kiểm tra trạng thái chốt chặn
+  currentHandovers: any[]; 
   onWorkflowReload: () => void;
   getStaffId: () => number;
 }
@@ -20,6 +22,7 @@ export function AdoptionFollowupsTab({
   applicantEmail,
   petName,
   followups,
+  currentHandovers, // Lấy dữ liệu mảng Handover từ cha truyền xuống
   onWorkflowReload,
   getStaffId,
 }: AdoptionFollowupsTabProps) {
@@ -114,22 +117,35 @@ export function AdoptionFollowupsTab({
     }
   };
 
+  // 🌟 CHỐT CHẶN BẢO MẬT: Kiểm tra xem đã có bất kỳ lịch bàn giao (Handover) nào hoàn tất (COMPLETED) chưa?
+  const isHandoverFinished = currentHandovers?.some(
+    (h) => h.status?.toUpperCase() === "COMPLETED"
+  );
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-white">Follow-up History</h3>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#f6931d] hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-all"
-        >
-          <span className="flex items-center gap-2">
-            {showForm ? <X key="close-f-ico" size={16} /> : <CalendarPlus key="open-f-ico" size={16} />}
-            <span>{showForm ? "Close Form" : "Schedule New"}</span>
+        
+        {/* HIỂN THỊ NÚT THEO TRẠNG THÁI HANDOVER */}
+        {isHandoverFinished ? (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#f6931d] hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-all"
+          >
+            <span className="flex items-center gap-2">
+              {showForm ? <X key="close-f-ico" size={16} /> : <CalendarPlus key="open-f-ico" size={16} />}
+              <span>{showForm ? "Close Form" : "Schedule New"}</span>
+            </span>
+          </button>
+        ) : (
+          <span className="text-xs text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">
+            ⚠️ Handover process must be COMPLETED before scheduling follow-ups.
           </span>
-        </button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && isHandoverFinished && (
         <AdminPanel title="Schedule New Follow-up Record">
           <form onSubmit={handleSubmitFollowup} className="space-y-4">
             <AdminFieldGrid cols={3}>

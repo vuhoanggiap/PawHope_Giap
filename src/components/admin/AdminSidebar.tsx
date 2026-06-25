@@ -1,3 +1,5 @@
+import { useEffect, useState, useRef, memo } from "react"; // 🌟 Thêm useRef và memo
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   LifeBuoy,
@@ -20,9 +22,11 @@ import {
   CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
 import { clearAdminSession, getStoredAdmin, type StaffRole } from "@/lib/admin-auth";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 type NavItem = {
   to: string;
@@ -30,6 +34,7 @@ type NavItem = {
   icon: LucideIcon;
   end?: boolean;
   onlyRoles?: StaffRole[];
+  showBadge?: boolean;
 };
 
 const allLinks: NavItem[] = [
@@ -37,7 +42,7 @@ const allLinks: NavItem[] = [
   { to: "/admin/rescue", label: "Rescue", icon: LifeBuoy },
   { to: "/admin/pets", label: "Pets", icon: Dog },
   { to: "/admin/kennels", label: "Kennels", icon: Warehouse },
-  { to: "/admin/adoptions", label: "Adoptions", icon: HeartHandshake },
+  { to: "/admin/adoptions", label: "Adoptions", icon: HeartHandshake, showBadge: true },
   { to: "/admin/products", label: "Products", icon: Package, onlyRoles: ["ADMIN"] },
   { to: "/admin/donations", label: "Donations", icon: Wallet, onlyRoles: ["ADMIN"] },
   { to: "/admin/my-schedule", label: "My schedule", icon: CalendarCheck, onlyRoles: ["VOLUNTEER"] },
@@ -63,12 +68,58 @@ interface AdminSidebarProps {
   onNavigate: () => void;
 }
 
-export function AdminSidebar({ mobileOpen, onNavigate }: AdminSidebarProps) {
+// 🌟 Dùng memo để bao bọc toàn bộ Component
+export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate }: AdminSidebarProps) {
   const navigate = useNavigate();
   const user = getStoredAdmin();
   const links = linksForRole(user?.role);
 
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  
+  // 🌟 KHÓA CHẶN 1: Dùng useRef để giữ kết nối không bị khởi tạo lại kể cả khi component cha bắt ép re-render
+  const stompClientRef = useRef<Client | null>(null);
+
+  const fetchPendingCount = () => {
+    apiFetch("/adoptions/count-pending")
+      .then((res: any) => {
+        const count = typeof res === "number" ? res : res?.data || 0;
+        setPendingCount(count);
+      })
+      .catch((err) => console.error("Failed to fetch pending count", err));
+  };
+
+  useEffect(() => {
+    fetchPendingCount();
+
+    // 🌟 KHÓA CHẶN 2: Nếu đã có một kết nối đang chạy rồi thì bỏ qua không tạo thêm kết nối mới
+    if (stompClientRef.current) return;
+
+    const socket = new SockJS("http://localhost:8082/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      onConnect: () => {
+        console.log("AdminSidebar WebSocket connected safely.");
+        stompClient.subscribe("/topic/adoptions/workflow", () => {
+          fetchPendingCount(); 
+        });
+      },
+    });
+
+    stompClient.activate();
+    stompClientRef.current = stompClient; // Lưu vào ref
+
+    return () => {
+      // Tuyệt đối không ngắt kết nối bừa bãi khi re-render thông thường
+    };
+  }, []); 
+
   function logout() {
+    if (stompClientRef.current) {
+      stompClientRef.current.deactivate();
+    }
     clearAdminSession();
     navigate("/admin/login", { replace: true });
   }
@@ -91,16 +142,27 @@ export function AdminSidebar({ mobileOpen, onNavigate }: AdminSidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {links.map(({ to, label, icon: Icon, end }) => (
+        {links.map(({ to, label, icon: Icon, end, showBadge }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             onClick={onNavigate}
-            className={({ isActive }) => cn("admin-nav-link", isActive && "admin-nav-link-active")}
+            className={({ isActive }) => 
+              cn(
+                "admin-nav-link relative flex items-center gap-3 pr-12 transition-none", 
+                isActive && "admin-nav-link-active"
+              )
+            }
           >
             <Icon className="h-5 w-5 shrink-0 opacity-90" />
-            {label}
+            <span className="truncate">{label}</span>
+
+            {showBadge && pendingCount > 0 && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f6931d] px-1.5 text-[10px] font-bold text-white shadow-sm select-none">
+                {pendingCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -131,4 +193,4 @@ export function AdminSidebar({ mobileOpen, onNavigate }: AdminSidebarProps) {
       </div>
     </aside>
   );
-}
+}); // 🌟 Đóng gói memo ở đây

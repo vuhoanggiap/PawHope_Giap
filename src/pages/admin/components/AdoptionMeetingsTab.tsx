@@ -1,9 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminPanel, AdminFieldGrid, AdminField } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { apiFetch } from "@/lib/api-client";
-import { CalendarPlus, X, CheckCircle, XCircle, Calendar, Clock, ChevronDown } from "lucide-react";
+import { CalendarPlus, X, CheckCircle, XCircle, Calendar, Clock, ChevronDown, MapPin, Video, Phone } from "lucide-react";
+
+// 🌟 DANH SÁCH CÁC TRẠM/CƠ SỞ ĐỂ CHỌN NHANH
+const SHELTER_LOCATIONS = [
+  { 
+    id: "hanoi_pet_adoption", 
+    name: "Hanoi Pet Adoption Shelter. Address: Alley 15, Cot Moc Street, Doai Phuong, Hanoi, Vietnam"
+  },
+  { 
+    id: "saigon_time_rescue", 
+    name: "Saigon Time Animal Rescue Station. Address: District 6 Center, Ho Chi Minh City, Vietnam"
+  }
+];
 
 const HOUR_OPTIONS = ["07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"];
 const MINUTE_OPTIONS = ["00", "15", "30", "45"];
@@ -40,13 +52,32 @@ export function AdoptionMeetingsTab({
   const [rescheduleData, setRescheduleData] = useState<{ id: number; dateStr: string; date: string; hour: string; minute: string } | null>(null);
   const [openReschedulePicker, setOpenReschedulePicker] = useState(false);
 
+  // 🌟 ĐÃ SỬA: State quản lý kiểu nhập địa điểm: Tại trạm (SHELTER) hoặc Phỏng vấn Trực tuyến (ONLINE)
+  const [locationType, setLocationType] = useState<"SHELTER" | "ONLINE">("SHELTER");
+  
+  // Các state bổ trợ riêng cho hình thức ONLINE để gộp chuỗi văn bản lưu xuống DB
+  const [onlinePlatform, setOnlinePlatform] = useState("GOOGLE_MEET");
+  const [onlineLink, setOnlineLink] = useState("");
+  const [zaloPhone, setZaloPhone] = useState("");
+
+  // 🌟 TỰ ĐỘNG GỘP THÔNG TIN ONLINE THÀNH CHUỖI MỖI KHI CÁC Ô NHẬP LIỆU THAY ĐỔI
+  useEffect(() => {
+    if (locationType === "ONLINE") {
+      if (onlinePlatform === "GOOGLE_MEET") {
+        setMeetingLocation(`ONLINE - Google Meet Link: ${onlineLink || "—"}`);
+      } else {
+        setMeetingLocation(`ONLINE - Zalo Interview. Phone Number to connect: ${zaloPhone || "—"}`);
+      }
+    }
+  }, [locationType, onlinePlatform, onlineLink, zaloPhone]);
+
   const formatDisplayDateTime = (isoStr: string) => {
     if (!isoStr) return "--- Click to select date & time ---";
     try {
       const [d, t] = isoStr.split("T");
       const [y, m, day] = d.split("-");
       const [h, min] = t.split(":");
-      return `${day}/${m}/${y}  ➔  ${h}:${min}`;
+      return `${day}/${m}/${y}   ➔   ${h}:${min}`;
     } catch {
       return isoStr;
     }
@@ -56,6 +87,10 @@ export function AdoptionMeetingsTab({
     e.preventDefault();
     if (!meetingDate) {
       alert("Please select appointment date and time first!");
+      return;
+    }
+    if (!meetingLocation || meetingLocation.includes("—")) {
+      alert("Please enter complete platform details / links for the interview!");
       return;
     }
 
@@ -75,6 +110,7 @@ export function AdoptionMeetingsTab({
       setMessage("Interview scheduled successfully! An email has been sent.");
       setShowMeetingForm(false);
       setMeetingDate(""); setMeetingLocation(""); setMeetingNote("");
+      setOnlineLink(""); setZaloPhone("");
       onWorkflowReload();
     } catch (error: any) {
       setMessage("Error scheduling interview: " + (error?.message || "Unknown error"));
@@ -117,6 +153,7 @@ export function AdoptionMeetingsTab({
         <AdminPanel title="Schedule New Interview Meeting">
           <form onSubmit={handleScheduleMeeting} className="space-y-4">
             <AdminFieldGrid cols={2}>
+              {/* KHỐI CHỌN THỜI GIAN GIỮ NGUYÊN GỐC 100% */}
               <div className="relative flex flex-col">
                 <label className="block text-xs uppercase tracking-wide text-slate-500 mb-1">Meeting Time</label>
                 <div
@@ -182,11 +219,80 @@ export function AdoptionMeetingsTab({
                 )}
               </div>
 
+              {/* 🌟 KHỐI ĐÃ SỬA: ĐIỀU HƯỚNG LOCATION THÀNH TẠI TRẠM HOẶC ONLINE ĐỒNG BỘ CSS */}
               <div>
-                <label className="block text-xs uppercase tracking-wide text-slate-500 mb-1">Location</label>
-                <input type="text" required placeholder="Ex: Rescue Station Base 1..." value={meetingLocation} onChange={(e) => setMeetingLocation(e.target.value)} className={adminInputClass()} />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs uppercase tracking-wide text-slate-500">Location</label>
+                  <div className="flex bg-slate-800 rounded-md p-0.5 border border-slate-700 scale-90 origin-right">
+                    <button
+                      type="button"
+                      onClick={() => { setLocationType("SHELTER"); setMeetingLocation(""); }}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded ${locationType === "SHELTER" ? "bg-[#2c5f51] text-white" : "text-slate-400 hover:text-white"}`}
+                    >
+                      At Shelter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLocationType("ONLINE"); setMeetingLocation(""); }}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded ${locationType === "ONLINE" ? "bg-[#2c5f51] text-white" : "text-slate-400 hover:text-white"}`}
+                    >
+                      Online Interview
+                    </button>
+                  </div>
+                </div>
+
+                {locationType === "SHELTER" ? (
+                  <select
+                    value={meetingLocation}
+                    onChange={(e) => setMeetingLocation(e.target.value)}
+                    className={adminInputClass()}
+                    required
+                  >
+                    <option value="">-- Choose a shelter address --</option>
+                    {SHELTER_LOCATIONS.map((loc) => (
+                      <option key={loc.id} value={loc.name}>
+                        📌 {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Hộp chọn nền tảng Online */}
+                    <select
+                      value={onlinePlatform}
+                      onChange={(e) => { setOnlinePlatform(e.target.value); setOnlineLink(""); setZaloPhone(""); }}
+                      className={adminInputClass()}
+                    >
+                      <option value="GOOGLE_MEET">📹 Google Meet (Provide URL link)</option>
+                      <option value="ZALO">💬 Zalo Chat (Provide Phone number)</option>
+                    </select>
+
+                    {/* Hiển thị Input tương ứng dựa theo nền tảng được chọn */}
+                    {onlinePlatform === "GOOGLE_MEET" ? (
+                      <input
+                        type="url"
+                        required
+                        placeholder="Paste Google Meet meeting link here (https://meet.google.com/...)"
+                        value={onlineLink}
+                        onChange={(e) => setOnlineLink(e.target.value)}
+                        className={adminInputClass()}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        pattern="[0-9]*"
+                        placeholder="Enter Zalo phone number for applicant to connect..."
+                        value={zaloPhone}
+                        onChange={(e) => setZaloPhone(e.target.value)}
+                        className={adminInputClass()}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </AdminFieldGrid>
+            
             <div>
               <label className="block text-xs uppercase tracking-wide text-slate-500 mb-1">Note for applicant (optional)</label>
               <textarea value={meetingNote} onChange={(e) => setMeetingNote(e.target.value)} className={adminInputClass()} placeholder="Documents to bring..." />
@@ -207,11 +313,38 @@ export function AdoptionMeetingsTab({
           <AdminPanel key={m.meetingId} title={`Meeting · ${new Date(m.meetingDatetime).toLocaleString('en-US')}`}>
             <AdminFieldGrid cols={3}>
               <AdminField label="Staff" value={`Staff #${m.staffId}`} />
-              <AdminField label="Location" value={m.meetingLocation} />
+              
+              {/* Tối ưu hiển thị Icon tương ứng với từng hình thức lưu trữ ngoài màn hình danh sách */}
+              <AdminField 
+                label="Location" 
+                value={
+                  m.meetingLocation?.startsWith("http") || m.meetingLocation?.includes("Google Meet") ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1"><Video size={12} className="text-blue-400" /> Google Meet</span>
+                      {m.meetingLocation.includes("https://") ? (
+                        <a href={m.meetingLocation.substring(m.meetingLocation.indexOf("https://"))} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline inline-break text-xs">
+                          Join Meeting Room ➔
+                        </a>
+                      ) : (
+                        <span className="text-sm text-slate-200">{m.meetingLocation}</span>
+                      )}
+                    </div>
+                  ) : m.meetingLocation?.includes("Zalo") ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1"><Phone size={12} className="text-teal-400" /> Zalo Interview</span>
+                      <span className="text-sm text-teal-400 font-semibold">{m.meetingLocation.replace("ONLINE - Zalo Interview. Phone Number to connect:", "📞")}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1">
+                      <MapPin size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                      <span>{m.meetingLocation || "—"}</span>
+                    </div>
+                  )
+                } 
+              />
               <AdminField label="Status" value={<StatusBadge value={m.status} />} />
               <AdminField label="Result" value={<StatusBadge value={m.result} />} />
               
-              {/* 🌟 ĐÃ NÂNG CẤP ĐIỀU KIỆN CHỐT CHẶN KHÓA NÚT ĐÁNH GIÁ (EVALUATE) VÀO TRONG BẢN CỦA BẠN */}
               {m.result?.toUpperCase() === "PENDING" && m.status?.toUpperCase() !== "CANCELLED" ? (
                 <div className="col-span-3 mt-2 flex items-center gap-3 border-t border-slate-700/50 pt-4">
                   {m.status?.toUpperCase() === "CONFIRMED" ? (
