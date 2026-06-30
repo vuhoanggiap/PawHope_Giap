@@ -1,4 +1,3 @@
-/** Format Spring Timestamp / ISO for UI display. */
 export function formatApiDateTime(value: string | number | null | undefined): string {
   if (value == null) return "";
   const d = new Date(value);

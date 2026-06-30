@@ -63,15 +63,12 @@ export const AdoptPetDetailPage = () => {
       return;
     }
     const fd = new FormData(e.currentTarget);
-    
-    // Thu thập toàn bộ dữ liệu sạch từ biểu mẫu
     const housingValue = String(fd.get("housing") || "OTHER");
     const currentPetsValue = String(fd.get("currentPets") || "");
     const scheduleValue = String(fd.get("schedule") || "");
     const reasonValue = String(fd.get("reason") || "");
 
     try {
-      // 1. Gọi luồng lưu đơn nhận nuôi
       const adoption = await saveAdoption({
         user_id: user.userId,
         userId: user.userId,
@@ -89,7 +86,6 @@ export const AdoptPetDetailPage = () => {
 
       const resData = adoption as any;
 
-      // 2. Gửi email thông báo chạy ngầm công cộng
       try {
         await apiFetch("/email/send", {
           method: "POST",
@@ -104,21 +100,17 @@ export const AdoptPetDetailPage = () => {
         console.error("Background email dispatch skipped:", emailError);
       }
 
-      // 3. Cập nhật giao diện thành công theo luồng chuẩn
       setSubmitted({ 
         code: resData.application_code || resData.applicationCode || "SUCCESS", 
         id: resData.adoption_id || resData.id || resData.adoptionId || pet.id 
       });
 
     } catch (error) {
-      // 🌟 LUỒNG PHÒNG NGỰ: Nếu Server ném lỗi 400 nhưng bản ghi đã được ghi nhận dưới MySQL
-      console.warn("⚠️ Server returned status error, executing resilient user-success flow...", error);
-      
-      // Tự động sinh mã hồ sơ ngẫu nhiên dạng ADxxxxxx trùng khớp định dạng Database của bạn để hiển thị UI
+      console.warn("Server returned status error, executing resilient user-success flow...", error);
+
       const randomHash = Math.random().toString(36).substring(2, 10).toUpperCase();
       const fallbackCode = `AD${randomHash}`;
-      
-      // Ép giao diện chuyển sang màn hình Hoàn thành, chặn đứng hoàn toàn việc hiện popup lỗi chặn người dùng
+
       setSubmitted({ 
         code: fallbackCode, 
         id: pet.id 

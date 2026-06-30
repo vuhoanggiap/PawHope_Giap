@@ -77,7 +77,7 @@ export function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               type="text"
-              placeholder="Enter username or email..."
+              placeholder="Enter your email"
               className={cn(
                 "admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               )}
@@ -93,7 +93,7 @@ export function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               className="admin-input mt-1.5 h-11 w-full bg-white !text-slate-900 placeholder:!text-slate-400"
               autoComplete="current-password"
               required

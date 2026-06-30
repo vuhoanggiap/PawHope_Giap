@@ -3,11 +3,7 @@ import { ArrowRight, Bell } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { adminDashboardStats as defaultStats } from "@/data/admin-mock";
 import { apiFetch, USE_MOCK } from "@/lib/api-client";
-import {
-  getDashboardQuickActions,
-  getDashboardStatCards,
-  getStaffUser,
-} from "@/lib/admin/admin-role";
+import { getDashboardQuickActions, getDashboardStatCards, getStaffUser} from "@/lib/admin/admin-role";
 import { loadDashboardStats } from "@/lib/admin/admin-data";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -17,23 +13,20 @@ export function AdminDashboardPage() {
   const forbidden = (location.state as { forbidden?: boolean } | null)?.forbidden;
   const staff = getStaffUser();
   const role = staff?.role;
-  
-  // 1. Khai báo state có thêm TypeScript typing <any[]> để tránh lỗi Vite
+
   const [todayFollowups, setTodayFollowups] = useState<any[]>([]);
 
   const [s, setS] = useState(defaultStats);
   
 useEffect(() => {
-    // Chỉ gọi API thống kê nếu user không phải là VOLUNTEER (hoặc là ADMIN)
     if (role !== "VOLUNTEER") {
       void loadDashboardStats().then(setS);
     }
   }, [role]);
 
   useEffect(() => {
-    // Chặn Volunteer gọi API /today vì Backend của bạn hiện chưa viết Endpoint này
     if (role === "VOLUNTEER") {
-      setTodayFollowups([]); // Set danh sách rỗng cho volunteer để giao diện hiển thị "No follow-ups scheduled for today."
+      setTodayFollowups([]); 
       return;
     }
 
@@ -44,12 +37,11 @@ useEffect(() => {
         }
       })
       .catch((err) => {
-        // Nuốt lỗi 403 âm thầm nếu vô tình bị chặn, tránh làm văng màn hình lỗi 500
         if (err?.status === 403 || err?.message?.includes('403')) {
-          console.warn("Bỏ qua tải follow-up do không đủ quyền truy cập.");
+          console.warn("Skipping follow-up loading due to insufficient access permissions..");
           return;
         }
-        console.error("Lỗi khi tải danh sách follow-up hôm nay:", err);
+        console.error("Error loading today's follow-up list:", err);
       });
   }, [role]);
 
@@ -73,7 +65,7 @@ useEffect(() => {
           role === "VOLUNTEER"
             ? USE_MOCK
               ? "Volunteer overview (mock mode)."
-              : "Volunteer overview from API."
+              : "Volunteer overview."
             : USE_MOCK
               ? "Overview with sample data (mock mode)."
               : "Overview of Paws Hope"
@@ -153,7 +145,6 @@ useEffect(() => {
             ))}
           </div>
         </div>
-        {/* --- BẢNG TODAY'S FOLLOW-UPS BẮT ĐẦU Ở ĐÂY --- */}
         <div className="admin-panel mt-6">
           <div className="admin-panel-header">
             <h3 className="font-medium text-white">Today's Scheduled Follow-ups ({todayFollowups.length})</h3>
@@ -188,7 +179,6 @@ useEffect(() => {
             )}
           </div>
         </div>
-        {/* --- KẾT THÚC BẢNG --- */}
       </div>
     </div>
   );

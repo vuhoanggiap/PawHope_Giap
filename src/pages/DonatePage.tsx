@@ -1,17 +1,16 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHero } from "@/components/layout/PageHero";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  donationQuickAmounts,
-  formatPublicEnum,
-  itemDonationCategories,
-} from "@/data/public-mock";
-import { donateItem, donateMoney } from "@/lib/public-commerce";
-import { useDonateCampaigns } from "@/hooks/useDonateCampaigns";
+import { PayPalButtons } from "@paypal/react-paypal-js";
+import { createPaypalOrder, capturePaypalDonation } from "@/lib/api/paypal-api";
+import { fetchPublicCampaigns, createItemDonation } from "@/lib/api/donations-api";
+import { fetchOrganizationInfo } from "@/lib/api/organization-api";
+import { donationQuickAmounts, formatPublicEnum, itemDonationCategories } from "@/data/public-mock";
+import type { DonationCampaign } from "@/data/public-mock";
 import { formatVnd } from "@/lib/formatVnd";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Gift, Heart, Package } from "lucide-react";
@@ -21,43 +20,63 @@ type Tab = "money" | "items" | "campaigns";
 export function DonatePage() {
   const { user } = usePublicAuth();
   const [tab, setTab] = useState<Tab>("campaigns");
-  const [selectedCampaign, setSelectedCampaign] = useState(1);
+  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<number>(0);
   const [amount, setAmount] = useState(200_000);
   const [customAmount, setCustomAmount] = useState("");
+  const [donorName, setDonorName] = useState("");
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [moneyDone, setMoneyDone] = useState(false);
   const [itemDone, setItemDone] = useState(false);
+  const [orgInfo, setOrgInfo] = useState<any | null>(null);
 
-  const { campaigns } = useDonateCampaigns();
+  useEffect(() => {
+    fetchPublicCampaigns()
+      .then((data) => {
+        setCampaigns(data);
+        const ongoing = data.find((c) => c.status === "ONGOING");
+        if (ongoing) setSelectedCampaign(ongoing.campaign_id);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoadingCampaigns(false));
 
-  const handleMoney = async (e: FormEvent<HTMLFormElement>) => {
+    fetchOrganizationInfo()
+      .then((data) => {
+        if (data) {
+          setOrgInfo(data); 
+        }
+      })
+      .catch((err) => console.error("Failed to fetch organization info:", err));
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setDonorName(user.fullName || "");
+    }
+  }, [user]);
+
+  const finalAmount = customAmount ? Number(customAmount) : amount;
+
+  const handleItemSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const finalAmount = customAmount ? Number(customAmount) : amount;
-    await donateMoney({
-      user_id: user?.userId,
-      campaign_id: selectedCampaign,
-      donor_name: String(fd.get("donorName") || "Guest"),
-      amount: finalAmount,
-    });
-    setMoneyDone(true);
-  };
-
-  const handleItem = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await donateItem({
-      user_id: user?.userId,
-      donor_name: String(fd.get("donorName") || ""),
-      item_name: String(fd.get("itemName") || ""),
-      category: String(fd.get("category") || "OTHER"),
-      quantity: String(fd.get("quantity") || ""),
-      note: String(fd.get("note") || "") || undefined,
-    });
-    setItemDone(true);
+    try {
+      await createItemDonation({
+        userId: user?.userId,
+        donorNameManual: String(fd.get("donorName") || "Anonymous"),
+        itemName: String(fd.get("itemName") || ""),
+        category: String(fd.get("category") || "OTHER"),
+        quantity: String(fd.get("quantity") || ""),
+        note: String(fd.get("note") || "") || undefined,
+      });
+      setItemDone(true);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to register item donation. Please try again.");
+    }
   };
 
   const fieldClass = "mt-1 rounded-xl border-[#2c5f51]/10";
-
   const tabs: { id: Tab; label: string; icon: typeof Heart }[] = [
     { id: "campaigns", label: "Campaigns", icon: Heart },
     { id: "money", label: "Give money", icon: Gift },
@@ -97,62 +116,68 @@ export function DonatePage() {
           </div>
 
           {tab === "campaigns" ? (
-            <div className="public-card-grid md:grid-cols-2">
-              {campaigns.map((c) => {
-                const pct = Math.min(100, Math.round((c.raised_amount / c.target_amount) * 100));
-                return (
-                  <div key={c.campaign_id} className="soft-card p-6 space-y-4">
-                    <div className="flex justify-between gap-2">
-                      <h3 className="font-semibold text-[#2c5f51]">{c.title}</h3>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#e6f2ec] text-[#3d6b5c]">
-                        {formatPublicEnum(c.status)}
-                      </span>
+            loadingCampaigns ? (
+              <div className="text-center py-8 soft-subtext">Loading campaigns...</div>
+            ) : campaigns.length === 0 ? (
+              <div className="text-center py-8 soft-subtext">No active campaigns at the moment.</div>
+            ) : (
+              <div className="public-card-grid md:grid-cols-2">
+                {campaigns.map((c) => {
+                  const pct = Math.min(100, Math.round((c.raised_amount / c.target_amount) * 100)) || 0;
+                  return (
+                    <div key={c.campaign_id} className="soft-card p-6 space-y-4">
+                      <div className="flex justify-between gap-2">
+                        <h3 className="font-semibold text-[#2c5f51]">{c.title}</h3>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#e6f2ec] text-[#3d6b5c]">
+                          {formatPublicEnum(c.status)}
+                        </span>
+                      </div>
+                      <p className="text-sm soft-subtext line-clamp-3">{c.description}</p>
+                      <div className="h-2 rounded-full bg-[#2c5f51]/10 overflow-hidden">
+                        <div className="h-full bg-[#f6931d] rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-sm text-[#3d6b5c]">
+                        <strong>{formatVnd(c.raised_amount)}</strong>
+                        <span className="soft-subtext"> of {formatVnd(c.target_amount)} ({pct}%)</span>
+                      </p>
+                      <Button
+                        type="button"
+                        className="rounded-full bg-[#f6931d] hover:bg-orange-600 w-full"
+                        onClick={() => {
+                          setSelectedCampaign(c.campaign_id);
+                          setTab("money");
+                        }}
+                        disabled={c.status === "COMING_SOON" || c.status === "COMPLETED" || c.status === "CANCELLED"}
+                      >
+                        {c.status === "COMING_SOON" ? "Coming Soon" : "Support this campaign"}
+                      </Button>
                     </div>
-                    <p className="text-sm soft-subtext">{c.description}</p>
-                    <div className="h-2 rounded-full bg-[#2c5f51]/10 overflow-hidden">
-                      <div className="h-full bg-[#f6931d] rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="text-sm text-[#3d6b5c]">
-                      <strong>{formatVnd(c.raised_amount)}</strong>
-                      <span className="soft-subtext"> of {formatVnd(c.target_amount)} ({pct}%)</span>
-                    </p>
-                    <Button
-                      type="button"
-                      className="rounded-full bg-[#f6931d] hover:bg-orange-600 w-full"
-                      onClick={() => {
-                        setSelectedCampaign(c.campaign_id);
-                        setTab("money");
-                      }}
-                      disabled={c.status === "COMPLETED"}
-                    >
-                      Support this campaign
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
           ) : null}
 
           {tab === "money" ? (
             moneyDone ? (
-              <div className="soft-card p-10 text-center space-y-3">
+              <div className="soft-card p-10 text-center space-y-3 max-w-xl mx-auto">
                 <CheckCircle2 className="mx-auto text-emerald-600" size={48} />
-                <p className="font-bold text-[#2c5f51]">Thank you for your gift!</p>
-                <p className="text-sm soft-subtext">PayPal payment preview — status PENDING until API connects.</p>
+                <p className="font-bold text-[#2c5f51]">Thank you for your generous gift!</p>
+                <p className="text-sm soft-subtext">Your financial donation has been processed successfully via PayPal.</p>
                 <Button type="button" variant="outline" className="mt-4 rounded-full" onClick={() => setMoneyDone(false)}>
                   Donate again
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleMoney} className="soft-card p-6 md:p-8 space-y-5 max-w-xl mx-auto">
+              <div className="soft-card p-6 md:p-8 space-y-5 max-w-xl mx-auto">
                 <div>
-                  <label className="text-sm font-medium text-[#5a6b60]">Campaign</label>
+                  <label className="text-sm font-medium text-[#5a6b60]">Select Campaign</label>
                   <select
                     value={selectedCampaign}
                     onChange={(e) => setSelectedCampaign(Number(e.target.value))}
-                    className={`${fieldClass} flex h-10 w-full px-3 text-sm`}
+                    className={`${fieldClass} flex h-10 w-full px-3 text-sm rounded-xl border`}
                   >
-                    {campaigns.filter((c) => c.status !== "COMPLETED").map((c) => (
+                    {campaigns.filter((c) => c.status === "ONGOING" || c.status === "COMING_SOON").map((c) => (
                       <option key={c.campaign_id} value={c.campaign_id}>
                         {c.title}
                       </option>
@@ -160,17 +185,17 @@ export function DonatePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-[#5a6b60]">Your name</label>
+                  <label className="text-sm font-medium text-[#5a6b60]">Your Name (Display)</label>
                   <Input
-                    name="donorName"
+                    value={donorName}
                     required
-                    defaultValue={user?.fullName}
-                    placeholder="Donor name"
+                    onChange={(e) => setDonorName(e.target.value)}
+                    placeholder="Enter your name or Anonymous"
                     className={fieldClass}
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#5a6b60] mb-2">Amount</p>
+                  <p className="text-sm font-medium text-[#5a6b60] mb-2">Select Amount</p>
                   <div className="flex flex-wrap gap-2">
                     {donationQuickAmounts.map((a) => (
                       <button
@@ -193,32 +218,92 @@ export function DonatePage() {
                   </div>
                   <Input
                     type="number"
-                    min={10000}
+                    min={25000}
                     placeholder="Custom amount (₫)"
                     value={customAmount}
                     onChange={(e) => setCustomAmount(e.target.value)}
                     className={cn(fieldClass, "mt-3")}
                   />
                 </div>
-                <Button type="submit" className="w-full rounded-full bg-[#2c5f51] hover:bg-[#3d6b5c] h-12 font-bold">
-                  Donate via PayPal (preview)
-                </Button>
-              </form>
+
+                <div className="pt-4 border-t border-dashed">
+                  <p className="text-xs text-center text-gray-400 mb-3">
+                    Total: <strong className="text-[#2c5f51] text-sm">{formatVnd(finalAmount)}</strong> (~${(finalAmount / 25000).toFixed(2)} USD)
+                  </p>
+                  <PayPalButtons
+                    style={{ layout: "vertical", color: "gold", shape: "pill", label: "donate" }}
+                    forceReRender={[finalAmount, selectedCampaign, donorName]}
+                    createOrder={async () => {
+                      const amountUsd = Number((finalAmount / 25000).toFixed(2));
+                      const paypalOrder = await createPaypalOrder(amountUsd);
+                      return paypalOrder.id;
+                    }}
+                    onApprove={async (data) => {
+                      if (!data.orderID) return;
+
+                      await capturePaypalDonation(data.orderID, {
+                        campaignId: selectedCampaign,
+                        userId: user?.userId || null,
+                        donorNameManual: donorName || "Guest",
+                        amount: finalAmount 
+                      });
+                      
+                      setMoneyDone(true);
+                    }}
+                    onError={(err) => {
+                      console.error(err);
+                      alert("Payment failed. Please try again.");
+                    }}
+                  />
+                </div>
+              </div>
             )
           ) : null}
 
           {tab === "items" ? (
             itemDone ? (
-              <div className="soft-card p-10 text-center space-y-3">
-                <CheckCircle2 className="mx-auto text-emerald-600" size={48} />
-                <p className="font-bold text-[#2c5f51]">Item donation registered</p>
-                <p className="text-sm soft-subtext">Our team will contact you about drop-off or pickup.</p>
+              <div className="soft-card p-6 md:p-10 text-center space-y-4 max-w-xl mx-auto border border-emerald-100 bg-emerald-50/30">
+                <CheckCircle2 className="mx-auto text-emerald-600" size={54} />
+                
+                <div className="space-y-1">
+                  <p className="font-bold text-xl text-[#2c5f51]">Item donation registered!</p>
+                  <p className="text-sm soft-subtext px-4">
+                    Thank you for your support. You can send your donated items to our rescue center using the information below:
+                  </p>
+                </div>
+                <div className="bg-white rounded-2xl p-5 text-left border border-[#2c5f51]/10 space-y-2.5 shadow-sm">
+                  <p className="text-sm text-gray-700">
+                    <strong className="text-[#2c5f51]">Address: </strong> 
+                    {orgInfo?.address || "Loading center address..."}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <strong className="text-[#2c5f51]">Hotline: </strong> 
+                    {orgInfo?.hotline || "Loading hotline..."} 
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <strong className="text-[#2c5f51]">Email: </strong> 
+                    {orgInfo?.email || "Loading email..."}
+                  </p>
+                  
+                  <div className="p-3 bg-amber-50 rounded-xl text-xs text-amber-800 border border-amber-200/60 leading-relaxed mt-2">
+                    * Note: If you are using a delivery service, please include our Hotline number so our coordinators can receive your package promptly.
+                  </div>
+                </div>
+
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="mt-2 rounded-full border-[#2c5f51]/20 hover:bg-white text-[#2c5f51]" 
+                  onClick={() => setItemDone(false)}
+                >
+                  Register another item
+                </Button>
               </div>
             ) : (
-              <form onSubmit={handleItem} className="soft-card p-6 md:p-8 space-y-4 max-w-xl mx-auto">
+              <form onSubmit={handleItemSubmit} className="soft-card p-6 md:p-8 space-y-4 max-w-xl mx-auto">
                 <div>
                   <label className="text-sm font-medium text-[#5a6b60]">Your name</label>
-                  <Input name="donorName" required defaultValue={user?.fullName} className={fieldClass} />
+                  <Input name="donorName" required defaultValue={user?.fullName || "Ẩn danh"} className={fieldClass} />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-[#5a6b60]">Item name</label>
@@ -227,7 +312,7 @@ export function DonatePage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-[#5a6b60]">Category</label>
-                    <select name="category" required className={`${fieldClass} flex h-10 w-full px-3 text-sm`}>
+                    <select name="category" required className={`${fieldClass} flex h-10 w-full px-3 text-sm rounded-xl border`}>
                       {itemDonationCategories.map((c) => (
                         <option key={c} value={c}>
                           {formatPublicEnum(c)}
@@ -244,7 +329,7 @@ export function DonatePage() {
                   <label className="text-sm font-medium text-[#5a6b60]">Note (optional)</label>
                   <Textarea name="note" placeholder="Brand, expiry, pickup time..." className={fieldClass} />
                 </div>
-                <Button type="submit" className="w-full rounded-full bg-[#2c5f51] h-11 font-bold">
+                <Button type="submit" className="w-full rounded-full bg-[#2c5f51] hover:bg-[#1d4137] h-11 font-bold text-white">
                   Register item donation
                 </Button>
               </form>

@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  AdminField,
-  AdminFieldGrid,
-  AdminPanel,
-} from "@/components/admin/AdminDetailUi";
+import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -12,10 +8,7 @@ import { mockOrderItems, mockOrders } from "@/data/admin-mock";
 import { loadOrderItems, loadOrders } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 import { ArrowLeft } from "lucide-react";
-import {
-  updateOrderStatus,
-  updatePaymentStatus,
-} from "@/lib/api/orders-api";
+import { updateOrderStatus, updatePaymentStatus } from "@/lib/api/orders-api";
 
 const ORDER_STATUS_FLOW = [
   "CONFIRMED",
@@ -124,32 +117,30 @@ export function AdminOrderDetailPage() {
                   const newStatus = e.target.value;
                   const currentStatus = order.order_status;
 
-                  if (
-                    currentStatus === "DELIVERED" ||
-                    currentStatus === "CANCELLED"
-                  ) {
-                    alert("This order status can no longer be changed.");
+                  if (newStatus === ORDER_CANCEL_STATUS) {
+                    if (currentStatus !== "CONFIRMED" && currentStatus !== "PREPARING") {
+                      alert("");
+                      return;
+                    }
+                  }
+
+                  if (currentStatus === "DELIVERED" || currentStatus === "CANCELLED") {
+                    alert("This order has been completed or cancelled; its status cannot be changed.");
                     return;
                   }
 
                   if (
                     newStatus !== ORDER_CANCEL_STATUS &&
-                    !canMoveForward(
-                      ORDER_STATUS_FLOW,
-                      currentStatus,
-                      newStatus
-                    )
+                    !canMoveForward(ORDER_STATUS_FLOW, currentStatus, newStatus)
                   ) {
-                    alert("It is not possible to reverse the order status.");
+                    alert("It is not possible to revert to the previous order status.");
                     return;
                   }
 
                   const ok = window.confirm(
                     `Are you sure you want to change the order status from ${formatEnum(
                       currentStatus
-                    )} to ${formatEnum(
-                      newStatus
-                    )}? Once changed, it cannot be reversed.`
+                    )} to ${formatEnum(newStatus)}?`
                   );
 
                   if (!ok) return;
@@ -178,25 +169,25 @@ export function AdminOrderDetailPage() {
                   }
                 }}
               >
-                {[...ORDER_STATUS_FLOW, ORDER_CANCEL_STATUS].map((s) => (
-                  <option
-                    key={s}
-                    value={s}
-                    disabled={
-                      order.order_status === "DELIVERED" ||
-                      order.order_status === "CANCELLED" ||
-                      (s !== order.order_status &&
-                        s !== ORDER_CANCEL_STATUS &&
-                        !canMoveForward(
-                          ORDER_STATUS_FLOW,
-                          order.order_status,
-                          s
-                        ))
-                    }
-                  >
-                    {formatEnum(s)}
-                  </option>
-                ))}
+                {[...ORDER_STATUS_FLOW, ORDER_CANCEL_STATUS].map((s) => {
+                  const currentStatus = order.order_status;
+                  let isDisabled = false;
+
+                  if (currentStatus === "DELIVERED" || currentStatus === "CANCELLED") {
+                    isDisabled = true;
+                  } else if (s === ORDER_CANCEL_STATUS) {
+
+                    isDisabled = currentStatus !== "CONFIRMED" && currentStatus !== "PREPARING";
+                  } else if (s !== currentStatus && !canMoveForward(ORDER_STATUS_FLOW, currentStatus, s)) {
+                    isDisabled = true; 
+                  }
+
+                  return (
+                    <option key={s} value={s} disabled={isDisabled}>
+                      {formatEnum(s)}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -219,9 +210,7 @@ export function AdminOrderDetailPage() {
                   const ok = window.confirm(
                     `Are you sure you want to change the payment status from ${formatEnum(
                       currentStatus
-                    )} to ${formatEnum(
-                      newStatus
-                    )}? Once changed, it cannot be reversed.`
+                    )} to ${formatEnum(newStatus)}? Once changed, it cannot be reversed.`
                   );
 
                   if (!ok) return;

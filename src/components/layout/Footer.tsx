@@ -22,7 +22,7 @@ export const Footer = () => {
             <h4 className="text-lg font-bold text-white">Explore</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/adopt" className="transition-colors hover:text-white">
+                <Link to="/blog" className="transition-colors hover:text-white">
                   Adoption process
                 </Link>
               </li>

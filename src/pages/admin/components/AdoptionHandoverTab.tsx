@@ -4,9 +4,8 @@ import { adminInputClass } from "@/components/admin/AdminControls";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatEnum } from "@/lib/adminFormat";
-import { Box, X, CheckCircle, Upload, ImageIcon, MapPin, CalendarCheck, Loader2 } from "lucide-react"; // 🌟 Thêm Loader2 cho mượt
+import { Box, X, CheckCircle, Upload, ImageIcon, MapPin, CalendarCheck, Loader2 } from "lucide-react"; 
 
-// 🌟 DANH SÁCH CÁC TRẠM/CƠ SỞ ĐỂ CHỌN NHANH ĐỒNG BỘ VỚI TAB MEETINGS
 const SHELTER_LOCATIONS = [
   { 
     id: "hanoi_pet_adoption", 
@@ -18,7 +17,6 @@ const SHELTER_LOCATIONS = [
   }
 ];
 
-// 🌟 DANH SÁCH CÁC VẬT PHẨM ĐI KÈM CÓ SẴN ĐỂ CHỌN NHANH
 const AVAILABLE_ITEMS = [
   { id: "vax_record", label: "Vaccination Record" },
   { id: "collar", label: "Collar" },
@@ -51,26 +49,17 @@ export function AdoptionHandoverTab({
   const [handoverItems, setHandoverItems] = useState("");
   const [handoverNote, setHandoverNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // State quản lý danh sách vật phẩm được chọn & text nhập thêm
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [customItem, setCustomItem] = useState("");
-
-  // State quản lý quy trình hoàn thành kèm ảnh
   const [completingHandoverId, setCompletingHandoverId] = useState<number | null>(null);
   const [completeNote, setCompleteNote] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // State quản lý kiểu nhập địa điểm giống hệt bên tab Meetings
   const [locationType, setLocationType] = useState<"SHELTER" | "CUSTOM">("SHELTER");
-
-  // 🌟 CÁC STATE BỔ SUNG: Quản lý danh sách gợi ý địa chỉ tự động ngầm
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
 
-  // Tự động gộp mảng Checkbox và Text nhập thêm thành chuỗi lưu xuống DB mỗi khi thay đổi
   useEffect(() => {
     const combinedItems = [...selectedItems];
     if (customItem.trim()) {
@@ -79,7 +68,6 @@ export function AdoptionHandoverTab({
     setHandoverItems(combinedItems.join(", "));
   }, [selectedItems, customItem]);
 
-  // 🌟 LUỒNG TỰ ĐỘNG GỌI API LẤY ĐỊA CHỈ KHI ADMIN GÕ CHỮ TRONG Ô CUSTOM
   useEffect(() => {
     if (locationType !== "CUSTOM" || handoverLocation.trim().length < 4) {
       setAddressSuggestions([]);
@@ -102,7 +90,7 @@ export function AdoptionHandoverTab({
       } finally {
         setIsSearchingAddress(false);
       }
-    }, 500); // Đợi gõ dừng 500ms để tối ưu hiệu năng mạng
+    }, 500); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [handoverLocation, locationType]);
@@ -185,7 +173,7 @@ export function AdoptionHandoverTab({
 
       const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
 
-      const response = await fetch(`http://localhost:8082/api/v1/adoption_handovers/${completingHandoverId}/complete`, {
+      const response = await fetch(`http://localhost:8080/api/v1/adoption_handovers/${completingHandoverId}/complete`, {
         method: "PATCH",
         headers: {
           "Authorization": authHeader 
@@ -240,7 +228,7 @@ export function AdoptionHandoverTab({
         
         {isHandoverLocked ? (
           <span className="text-xs text-green-400 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20 font-medium">
-            ✅ Schedule locked · Adover has confirmed this handover arrangement
+            Schedule locked · Adover has confirmed this handover arrangement
           </span>
         ) : isApproved ? (
           <button
@@ -260,7 +248,6 @@ export function AdoptionHandoverTab({
         )}
       </div>
 
-      {/* PANEL NHẬP LIỆU HOÀN THÀNH KÈM UPLOAD ẢNH */}
       {completingHandoverId && (
         <AdminPanel title="Complete Handover Process & Upload Proof">
           <form onSubmit={handleFinalizeComplete} className="space-y-4">
@@ -323,16 +310,15 @@ export function AdoptionHandoverTab({
                 {locationType === "SHELTER" ? (
                   <select value={handoverLocation} onChange={(e) => setHandoverLocation(e.target.value)} className={adminInputClass()} required>
                     <option value="">-- Choose a shelter address --</option>
-                    {SHELTER_LOCATIONS.map((loc) => <option key={loc.id} value={loc.name}>📌 {loc.name}</option>)}
+                    {SHELTER_LOCATIONS.map((loc) => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
                   </select>
                 ) : (
-                  // 🌟 ĐÃ CẬP NHẬT: Ô nhập CUSTOM tự động bắt gợi ý địa chỉ qua datalist, giữ nguyên css gốc
                   <div className="relative w-full">
                     <input 
                       type="text" 
                       required 
                       list="handover-address-suggestions"
-                      placeholder="Type address to find... (e.g. 15 Phạm Thận Duật)" 
+                      placeholder="Type address to find... (e.g. 15 Pham Van Dong)" 
                       value={handoverLocation} 
                       onChange={(e) => setHandoverLocation(e.target.value)} 
                       className={adminInputClass()} 
@@ -401,7 +387,7 @@ export function AdoptionHandoverTab({
               />
               <AdminField label="Status" value={<StatusBadge value={h.status} />} />
               <AdminField label="Handled by" value={`Staff #${h.staffId}`} />
-              <AdminField label="Adopter Confirmed" value={h.adopterConfirmed ? "Yes ✅" : "No ⏳"} />
+              <AdminField label="Adopter Confirmed" value={h.adopterConfirmed ? "Yes" : "No"} />
               
               <div className="flex items-center">
                 {h.status?.toUpperCase() === "RESCHEDULED" ? (

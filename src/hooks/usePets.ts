@@ -26,15 +26,15 @@ export function useAdoptablePets() {
       const formattedPets: MockPet[] = data.map((pet: any) => ({
         ...pet,
         id: pet.id || pet.petId,
-        breed: pet.breed || "Không xác định",
+        breed: pet.breed || "Unknown",
         ageYears: pet.ageMonths ? Math.round((pet.ageMonths / 12) * 10) / 10 : 0,
         imageUrl: pet.imageUrl || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500",
-        description: pet.description || "Chưa có thông tin mô tả."
+        description: pet.description || "No information available yet.."
       } as MockPet));
 
       setPets(formattedPets);
     } catch (e: any) {
-      setError(e instanceof ApiError ? e.message : "Không thể tải danh sách thú cưng");
+      setError(e instanceof ApiError ? e.message : "Unable to load the list of pets.");
       setPets([]);
     } finally {
       setLoading(false);
@@ -46,11 +46,8 @@ export function useAdoptablePets() {
   }, [reload]);
 
   return { pets, loading, error, reload };
-} // <--- CHÍNH LÀ DẤU NGOẶC NÀY BẠN BỊ THIẾU!
+} 
 
-// ==========================================
-// HOOK 2: LẤY TẤT CẢ THÚ CƯNG CHO ADMIN
-// ==========================================
 export function useAllPets() {
   const [pets, setPets] = useState<MockPet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,15 +63,15 @@ export function useAllPets() {
       const formattedPets: MockPet[] = data.map((pet: any) => ({
         ...pet,
         id: pet.id || pet.petId,
-        breed: pet.breed || "Không xác định",
+        breed: pet.breed || "Unknown",
         ageYears: pet.ageMonths ? Math.round((pet.ageMonths / 12) * 10) / 10 : 0,
         imageUrl: pet.imageUrl || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500",
-        description: pet.description || "Chưa có thông tin."
+        description: pet.description || "No information available yet.."
       } as MockPet));
 
       setPets(formattedPets);
     } catch (e: any) {
-      setError(e instanceof ApiError ? e.message : "Không thể tải danh sách thú cưng");
+      setError(e instanceof ApiError ? e.message : "Unable to load the list of pets.");
     } finally {
       setLoading(false);
     }

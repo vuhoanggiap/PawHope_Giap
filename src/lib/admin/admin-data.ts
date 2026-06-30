@@ -1,29 +1,8 @@
-import {
-  adminDashboardStats as mockDashboardStats,
-  mockAdoptions,
-  mockAdminPets,
-  mockDonationCampaigns,
-  mockDonations,
-  mockEmailLogs,
-  mockExpenses,
-  mockItemDonations,
-  mockKennels,
-  mockNotifications,
-  mockOrderItems,
-  mockOrders,
-  mockPetMedicalRecords,
-  mockPetStatusLogs,
-  mockRescueReports,
-  mockScheduleWindows,
-  mockShifts,
-  mockStaff,
-  mockUsers,
-  mockVolunteerApplications,
-  mockVolunteerSchedules,
-  mockVolunteerWeeks,
-  mockAdoptionMeetings,
-  mockAdoptionHandovers,
-  mockAdoptionFollowups,
+import { adminDashboardStats as mockDashboardStats, mockAdoptions, mockAdminPets, mockDonationCampaigns,
+  mockDonations, mockEmailLogs, mockExpenses, mockItemDonations, mockKennels, mockNotifications,
+  mockOrderItems, mockOrders, mockPetMedicalRecords, mockPetStatusLogs, mockRescueReports, mockScheduleWindows,
+  mockShifts, mockStaff, mockUsers, mockVolunteerApplications, mockVolunteerSchedules, mockVolunteerWeeks, mockAdoptionMeetings,
+  mockAdoptionHandovers, mockAdoptionFollowups,
 } from "@/data/admin-mock";
 import { ApiError, apiFetch, USE_MOCK } from "@/lib/api-client";
 import { formatApiDate } from "@/lib/api/format";
@@ -35,63 +14,33 @@ import { fetchExpenses } from "@/lib/api/expenses-api";
 import { fetchKennels } from "@/lib/api/kennels-api";
 import type { NotificationResDto, RescueReportResDto } from "@/lib/api/mappers";
 import { fetchOrderById } from "@/lib/api/orders-api";
-import {
-  acceptRescueReport,
-  deleteRescueReport,
-  updateRescueReportStatus,
-} from "@/lib/api/rescue-reports-api";
+import { acceptRescueReport, deleteRescueReport, updateRescueReportStatus } from "@/lib/api/rescue-reports-api";
 import { markNotificationRead } from "@/lib/api/notifications-api";
 import { fetchMeetingsByAdoption } from "@/lib/api/adoption-meetings-api";
 import { fetchHandoversByAdoption } from "@/lib/api/adoption-handovers-api";
 import { fetchFollowupsByAdoption } from "@/lib/api/adoption-followups-api";
-import {
-  approveAdoption,
-  cancelAdoption,
-  completeAdoption,
-  rejectAdoption,
-  updateAdoptionPaymentStatus,
-} from "@/lib/api/adoptions-api";
+import { approveAdoption, cancelAdoption, completeAdoption, rejectAdoption, updateAdoptionPaymentStatus } from "@/lib/api/adoptions-api";
 import { createExpense } from "@/lib/api/expenses-api";
 import { updateKennel } from "@/lib/api/kennels-api";
 import { fetchUsersRaw, patchUserRole, patchUserStatus } from "@/lib/api/users-api";
 import { getStoredAdmin } from "@/lib/admin-auth";
 import { fetchAllProducts } from "@/lib/api/products-api";
-import { fetchVolunteerApplications } from "@/lib/api/volunteer-applications-api";
-import {
-  createVolunteerSchedule,
-  createVolunteerScheduleWeek,
-  deleteVolunteerSchedule,
-  fetchScheduleWeeks,
-  fetchScheduleWindows,
-  fetchShifts,
-  fetchVolunteerSchedules,
-  submitVolunteerScheduleWeek,
+import { fetchVolunteerApplications, updateApplicationStatusApi, } from "@/lib/api/volunteer-applications-api";
+import { createVolunteerSchedule, createVolunteerScheduleWeek, deleteVolunteerSchedule, fetchScheduleWeeks, fetchScheduleWindows,
+  fetchShifts, fetchVolunteerSchedules, submitVolunteerScheduleWeek,
 } from "@/lib/api/volunteer-schedule-api";
-import {
-  mapAdminAdoption,
-  mapAdminCampaign,
-  mapAdminDonation,
-  mapAdminEmailLog,
-  mapAdminExpense,
-  mapAdminItemDonation,
-  mapAdminKennel,
-  mapAdminMedical,
-  mapAdminNotification,
-  mapAdminOrder,
-  mapAdminPet,
-  mapAdminRescue,
-  mapAdminStatusLog,
-  mapAdminVolunteerApp,
-  mapAdminMeeting,
-  mapAdminHandover,
-  mapAdminFollowup,
-  type AdminRescueRow,
-  mapScheduleWindow,
-  mapShift,
+import { mapAdminAdoption, mapAdminCampaign, mapAdminDonation, mapAdminEmailLog, mapAdminExpense, mapAdminItemDonation,
+  mapAdminKennel, mapAdminMedical, mapAdminNotification, mapAdminOrder, mapAdminPet, mapAdminRescue, mapAdminStatusLog,
+  mapAdminVolunteerApp, mapAdminMeeting, mapAdminHandover, mapAdminFollowup, type AdminRescueRow, mapScheduleWindow,
+  mapShift, mapVolunteerInterview,
   mapVolunteerScheduleRow,
 } from "@/lib/admin/admin-mappers";
 import { fetchPetMedicalByPet, fetchPetStatusLogsByPet } from "@/lib/api/pet-records-api";
 import type { DonationResDto, ItemDonationResDto } from "@/lib/api/mappers";
+import { fetchVolunteerInterviews,  createVolunteerInterview,
+  updateInterviewStatusApi, updateInterviewResultApi
+ } from "@/lib/api/volunteer-interviews-api";
+import { fetchContactMessages, updateContactMessageStatus, type ContactMessageResDto } from "@/lib/api/contact-messages-api";
 
 type UserRow = (typeof mockUsers)[number];
 
@@ -112,6 +61,8 @@ const cache = {
   windows: null as ReturnType<typeof mapScheduleWindow>[] | null,
   shifts: null as ReturnType<typeof mapShift>[] | null,
   schedules: null as ReturnType<typeof mapVolunteerScheduleRow>[] | null,
+  interviews: null as any[] | null,
+  contactMessages: null as ContactMessageResDto[] | null,
 };
 
 function userLookup(userId: number | null | undefined) {
@@ -218,6 +169,16 @@ export async function loadRescueAssignees() {
     full_name: u.full_name,
     role: u.role,
   }));
+}
+
+export async function loadContactMessages() {
+  if (USE_MOCK) return [];
+
+  if (cache.contactMessages) return cache.contactMessages;
+
+  cache.contactMessages = await fetchContactMessages();
+
+  return cache.contactMessages;
 }
 
 export async function markAdminNotificationRead(notiId: number) {
@@ -425,11 +386,46 @@ export async function loadExpenses() {
   return cache.expenses;
 }
 
+export async function loadVolunteerInterviews() {
+  if (USE_MOCK) return [];
+
+  if (cache.interviews) return cache.interviews;
+
+  try {
+    const res = await fetchVolunteerInterviews();
+
+    const list = Array.isArray(res) ? res : [];
+
+    cache.interviews = list.map(mapVolunteerInterview);
+
+    return cache.interviews;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
 export async function loadVolunteerApplications() {
   if (USE_MOCK) return mockVolunteerApplications;
   if (cache.volunteers) return cache.volunteers;
   cache.volunteers = (await fetchVolunteerApplications()).map(mapAdminVolunteerApp);
   return cache.volunteers;
+}
+
+export async function updateVolunteerApplicationStatus(
+  id: number,
+  status: string,
+  reviewerId: number,
+  rejectionReason?: string
+) {
+  await updateApplicationStatusApi(
+    id,
+    status,
+    reviewerId,
+    rejectionReason
+  );
+
+  cache.volunteers = null;
 }
 
 export async function loadNotifications() {
@@ -585,7 +581,6 @@ export async function loadMyScheduleBundle(userId: number) {
     return { windows, shifts, weeks, shiftsRegistered: myShifts };
   }
 
-  // 🟢 BỌC BẮT LỖI AN TOÀN CHỐNG SẬP 500 CHO TÀI KHOẢN MỚI
   const weekDtos = await fetchScheduleWeeks().catch(() => []);
   const weeks: MyScheduleWeekRow[] = Array.isArray(weekDtos) 
     ? weekDtos
@@ -622,7 +617,6 @@ export async function loadMyScheduleBundle(userId: number) {
   return { windows, shifts, weeks, shiftsRegistered };
 }
 
-// 🟢 TẠO BÍ DANH HÀM (ALIAS) ĐỂ KHỚP 100% VỚI FRONTEND ĐANG GỌI
 export const loadMyScheduleBundleReal = loadMyScheduleBundle;
 
 export async function registerMyScheduleWeek(windowId: number, userId: number) {
@@ -740,6 +734,31 @@ export async function submitMyScheduleWeek(weekId: number) {
     week_start: formatApiDate(dto.weekStartDate),
     week_end: formatApiDate(dto.weekEndDate),
   };
+}
+
+export async function createInterviewAdmin(body: any) {
+  const res = await createVolunteerInterview(body);
+  const mapped = mapVolunteerInterview(res);
+  cache.interviews = null; 
+  return mapped;
+}
+
+export async function updateInterviewStatus(id: number, status: string) {
+  const res = await updateInterviewStatusApi(id, status);
+  cache.interviews = null;
+  return mapVolunteerInterview(res);
+}
+
+export async function updateInterviewResult(id: number, result: string, note?: string) {
+  const res = await updateInterviewResultApi(id, result, note);
+  cache.interviews = null;
+  return mapVolunteerInterview(res);
+}
+
+export async function markContactMessageRead(id: number) {
+  if (USE_MOCK) return;
+  await updateContactMessageStatus(id, "READ");
+  cache.contactMessages = null;
 }
 
 export { mockStaff };

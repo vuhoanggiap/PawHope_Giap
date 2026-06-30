@@ -4,9 +4,12 @@ import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/Admin
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { mockVolunteerApplications, mockVolunteerInterviews } from "@/data/admin-mock";
-import { getStaffName, loadVolunteerApplications } from "@/lib/admin/admin-data";
+import { mockVolunteerApplications } from "@/data/admin-mock";
+import { getStaffName,  loadVolunteerApplications,  updateVolunteerApplicationStatus, 
+  loadVolunteerInterviews, createInterviewAdmin, updateInterviewStatus, updateInterviewResult
+} from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
+import { getStoredAdmin } from "@/lib/admin-auth";
 
 type VolunteerAppRow = Awaited<ReturnType<typeof loadVolunteerApplications>>[number];
 
@@ -14,20 +17,156 @@ export function AdminVolunteersPage() {
   const [apps, setApps] = useState<VolunteerAppRow[]>(
     mockVolunteerApplications as VolunteerAppRow[]
   );
+  const [interviews, setInterviews] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(
     mockVolunteerApplications[0]?.application_id ?? null
   );
+  const [loading, setLoading] = useState(false);
+  const [openSchedule, setOpenSchedule] = useState(false);
+
+  const [scheduleForm, setScheduleForm] = useState({
+    interviewDatetime: "",
+    meetingType: "ONLINE",
+    meetingLink: "",
+    locationText: "",
+  });
 
   useEffect(() => {
     void loadVolunteerApplications().then((list) => {
       setApps(list);
       setSelectedId((prev) => prev ?? list[0]?.application_id ?? null);
     });
+    void loadVolunteerInterviews().then(setInterviews);
   }, []);
+
   const selected = apps.find((a) => a.application_id === selectedId);
-  const interviews = selected
-    ? mockVolunteerInterviews.filter((i) => i.application_id === selected.application_id)
+  
+  const applicationInterviews = selected
+    ? interviews.filter((i) => i.application_id === selected.application_id)
     : [];
+
+  const reload = async () => {
+    const list = await loadVolunteerApplications();
+    setApps(list);
+
+    if (selectedId) {
+      const current = list.find((x) => x.application_id === selectedId);
+      if (!current && list.length > 0) {
+        setSelectedId(list[0].application_id);
+      }
+    }
+  };
+
+  const reloadInterviews = async () => {
+    const ivList = await loadVolunteerInterviews();
+    setInterviews(ivList);
+  };
+
+  const getAvailableStatuses = (currentStatus: string) => {
+    switch (currentStatus) {
+      case "PENDING":
+        return ["PENDING", "INTERVIEW_SCHEDULED"];
+      case "INTERVIEW_SCHEDULED":
+        return ["INTERVIEW_SCHEDULED", "INTERVIEWED"];
+      case "INTERVIEWED":
+        return ["INTERVIEWED", "APPROVED", "REJECTED"];
+      case "APPROVED":
+        return ["APPROVED"];
+      case "REJECTED":
+        return ["REJECTED"];
+      default:
+        return [currentStatus];
+    }
+  };
+
+  const handleStatusChange = async (nextStatus: string) => {
+    if (!selected) return;
+    if (nextStatus === selected.status) return;
+
+    const isConfirmed = window.confirm(
+      `Are you sure you want to change status from ${formatEnum(selected.status)} to ${formatEnum(nextStatus)}?`
+    );
+    if (!isConfirmed) return;
+
+    try {
+      setLoading(true);
+      const admin = getStoredAdmin();
+
+      await updateVolunteerApplicationStatus(
+        selected.application_id,
+        nextStatus,
+        admin?.userId ?? 1,
+        nextStatus === "REJECTED" ? selected.rejection_reason : undefined
+      );
+
+      await reload();
+    } catch (err) {
+      console.error(err);
+      alert("Update status failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInterviewStatusChange = async (interviewId: number, status: string) => {
+    try {
+      setLoading(true);
+      await updateInterviewStatus(interviewId, status);
+      await reloadInterviews();
+    } catch (err) {
+      console.error(err);
+      alert("Update interview status failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInterviewResultChange = async (interviewId: number, result: string) => {
+    try {
+      setLoading(true);
+      const note = prompt("Enter evaluation note (optional):") ?? "";
+      await updateInterviewResult(interviewId, result, note);
+      await reloadInterviews();
+    } catch (err) {
+      console.error(err);
+      alert("Update interview result failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateInterview = async () => {
+    if (!selected) return;
+    try {
+      setLoading(true);
+      const admin = getStoredAdmin();
+
+      await createInterviewAdmin({
+        applicationId: selected.application_id,
+        interviewerId: admin?.userId ?? 1,
+        interviewDatetime: scheduleForm.interviewDatetime,
+        meetingType: scheduleForm.meetingType,
+        meetingLink: scheduleForm.meetingType === "ONLINE" ? scheduleForm.meetingLink : undefined,
+        locationText: scheduleForm.meetingType === "OFFLINE" ? scheduleForm.locationText : undefined,
+        status: "SCHEDULED",
+        result: "PENDING",
+      });
+
+      await reloadInterviews();
+      setOpenSchedule(false);
+      setScheduleForm({
+        interviewDatetime: "",
+        meetingType: "ONLINE",
+        meetingLink: "",
+        locationText: "",
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Create interview failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -54,11 +193,12 @@ export function AdminVolunteersPage() {
                 <p className="font-medium text-white">{app.full_name}</p>
                 <StatusBadge value={app.status} />
               </div>
-              <p className="text-xs text-slate-500 mt-1">{app.email} · {app.applied_at}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {app.email} · {app.applied_at}
+              </p>
             </button>
           ))}
         </div>
-
         <div className="xl:col-span-3 space-y-4">
           {!selected ? (
             <AdminPanel title="Application detail">
@@ -93,19 +233,14 @@ export function AdminVolunteersPage() {
                     <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
                     <select
                       value={selected.status}
-                      onChange={(e) =>
-                        setApps((prev) =>
-                          prev.map((a) =>
-                            a.application_id === selected.application_id
-                              ? { ...a, status: e.target.value }
-                              : a
-                          )
-                        )
-                      }
+                      disabled={loading || selected.status === "APPROVED" || selected.status === "REJECTED"}
+                      onChange={(e) => handleStatusChange(e.target.value)}
                       className={adminInputClass()}
                     >
-                      {["PENDING", "INTERVIEW_SCHEDULED", "INTERVIEWED", "APPROVED", "REJECTED"].map((s) => (
-                        <option key={s} value={s}>{formatEnum(s)}</option>
+                      {getAvailableStatuses(selected.status).map((s) => (
+                        <option key={s} value={s}>
+                          {formatEnum(s)}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -115,30 +250,89 @@ export function AdminVolunteersPage() {
                 <div className="mt-4 space-y-1">
                   <p className="text-xs uppercase tracking-wide text-slate-500">Rejection reason</p>
                   <textarea
-                    defaultValue={selected.rejection_reason}
+                    value={selected.rejection_reason}
+                    disabled={selected.status === "APPROVED" || selected.status === "REJECTED"}
+                    onChange={(e) =>
+                      setApps((prev) =>
+                        prev.map((a) =>
+                          a.application_id === selected.application_id
+                            ? { ...a, rejection_reason: e.target.value }
+                            : a
+                        )
+                      )
+                    }
                     className={adminInputClass("min-h-[80px] py-3")}
                     placeholder="If rejected, explain why..."
                   />
                 </div>
               </AdminPanel>
 
-              <AdminPanel title={`Interviews (${interviews.length})`}>
-                {interviews.length === 0 ? (
+              <AdminPanel 
+                title={`Interviews (${applicationInterviews.length})`}
+                action={
+                  !(selected.status === "APPROVED" || selected.status === "REJECTED") && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenSchedule(true)}
+                      className="admin-btn-primary text-xs py-1 px-3"
+                    >
+                      + Schedule Interview
+                    </button>
+                  )
+                }
+              >
+                {applicationInterviews.length === 0 ? (
                   <p className="text-sm text-slate-500">No interview scheduled.</p>
                 ) : (
-                  interviews.map((iv) => (
-                    <AdminFieldGrid key={iv.interview_id} cols={3}>
-                      <AdminField label="When" value={iv.interview_datetime} />
-                      <AdminField label="Type" value={formatEnum(iv.meeting_type)} />
-                      <AdminField label="Interviewer" value={iv.interviewer_name} />
-                      <AdminField label="Status" value={<StatusBadge value={iv.status} />} />
-                      <AdminField label="Result" value={<StatusBadge value={iv.result} />} />
-                      <AdminField
-                        label={iv.meeting_type === "ONLINE" ? "Meeting link" : "Location"}
-                        value={iv.meeting_link || iv.location_text || "—"}
-                      />
-                    </AdminFieldGrid>
-                  ))
+                  <div className="space-y-6 divide-y divide-slate-800">
+                    {applicationInterviews.map((iv, idx) => (
+                      <div key={iv.interview_id} className={idx > 0 ? "pt-6" : ""}>
+                        <AdminFieldGrid cols={3}>
+                          <AdminField label="When" value={iv.interview_datetime} />
+                          <AdminField label="Type" value={formatEnum(iv.meeting_type)} />
+                          <AdminField label="Interviewer" value={iv.interviewer_name || getStaffName(iv.interviewer_id)} />
+
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+                            <select
+                              value={iv.status}
+                              disabled={loading || selected.status === "APPROVED" || selected.status === "REJECTED"}
+                              onChange={(e) => handleInterviewStatusChange(iv.interview_id, e.target.value)}
+                              className={adminInputClass("py-1 text-xs")}
+                            >
+                              {["SCHEDULED", "COMPLETED", "CANCELLED"].map((s) => (
+                                <option key={s} value={s}>{formatEnum(s)}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Result</p>
+                            <select
+                              value={iv.result}
+                              disabled={loading || selected.status === "APPROVED" || selected.status === "REJECTED"}
+                              onChange={(e) => handleInterviewResultChange(iv.interview_id, e.target.value)}
+                              className={adminInputClass("py-1 text-xs")}
+                            >
+                              {["PENDING", "PASSED", "FAILED"].map((r) => (
+                                <option key={r} value={r}>{formatEnum(r)}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <AdminField
+                            label={iv.meeting_type === "ONLINE" ? "Meeting link" : "Location"}
+                            value={iv.meeting_link || iv.location_text || "—"}
+                          />
+                        </AdminFieldGrid>
+                        {iv.evaluation_note && (
+                          <div className="mt-2 text-xs text-slate-400 bg-slate-900/50 p-2 rounded border border-slate-800">
+                            <strong>Note:</strong> {iv.evaluation_note}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </AdminPanel>
 
@@ -154,6 +348,85 @@ export function AdminVolunteersPage() {
           )}
         </div>
       </div>
+
+      {openSchedule && selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#1e1e1e] p-6 rounded-xl w-[500px] space-y-3 border border-slate-800">
+            <h2 className="text-lg font-semibold text-white">Schedule Interview</h2>
+
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Date & Time</label>
+              <input
+                type="datetime-local"
+                className={adminInputClass()}
+                value={scheduleForm.interviewDatetime}
+                onChange={(e) =>
+                  setScheduleForm((p) => ({ ...p, interviewDatetime: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Meeting Type</label>
+              <select
+                className={adminInputClass()}
+                value={scheduleForm.meetingType}
+                onChange={(e) =>
+                  setScheduleForm((p) => ({ ...p, meetingType: e.target.value }))
+                }
+              >
+                <option value="ONLINE">ONLINE</option>
+                <option value="OFFLINE">OFFLINE</option>
+              </select>
+            </div>
+
+            {scheduleForm.meetingType === "ONLINE" ? (
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400">Meeting Link</label>
+                <input
+                  className={adminInputClass()}
+                  placeholder="https://zoom.us/j/..."
+                  value={scheduleForm.meetingLink}
+                  onChange={(e) =>
+                    setScheduleForm((p) => ({ ...p, meetingLink: e.target.value }))
+                  }
+                />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400">Location Text</label>
+                <input
+                  className={adminInputClass()}
+                  placeholder="No 10, Dan Phuong, Ha Noi."
+                  value={scheduleForm.locationText}
+                  onChange={(e) =>
+                    setScheduleForm((p) => ({ ...p, locationText: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                disabled={loading}
+                onClick={() => setOpenSchedule(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn-primary"
+                disabled={loading || !scheduleForm.interviewDatetime}
+                onClick={handleCreateInterview}
+              >
+                {loading ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { clearAuthToken, setAuthToken } from "@/lib/auth-session";
 import { getAuthToken } from "@/lib/auth-session";
 import { API_BASE } from "@/lib/api-client";
 
-export type PublicRole = "USER";
+export type PublicRole = "USER" | "ADMIN" | "VOLUNTEER";
 
 export interface PublicUser {
   userId: number;
@@ -107,20 +107,27 @@ export async function loginPublic(
   const email = loginIdentifierToEmail(identifier);
   try {
     const res = await loginWithEmail(email, password);
-    if (res.role?.toUpperCase() !== "USER") return null;
-    setAuthToken(res.token);
+    const rawUser = (res as any).data ? (res as any).data : res;
+
+    if (rawUser.role?.toUpperCase() !== "USER" && (res as any).role?.toUpperCase() !== "USER") {
+    }
+
+    setAuthToken(rawUser.token || (res as any).token);
+
     const user: PublicUser = {
-      userId: res.userId,
-      username: res.username,
-      fullName: res.fullName,
-      email: res.email,
-      phone: res.phone,
+      userId: rawUser.userId || rawUser.user_id,
+      username: rawUser.username,
+      fullName: rawUser.fullName || rawUser.full_name,
+      email: rawUser.email,
+      phone: rawUser.phone || rawUser.phone_number || rawUser.phoneNumber || "",
       role: "USER",
     };
+    
     saveSession(user);
     return user;
-  } catch {
-    return null;
+  } catch (error) {
+    console.error("Login public error:", error);
+    throw error;
   }
 }
 
@@ -130,7 +137,7 @@ export async function registerPublic(input: {
   fullName: string;
   email: string;
   phone?: string;
-}): Promise<boolean> { // Đổi kiểu trả về thành Promise<boolean>
+}): Promise<boolean> {
   try {
     const token = getAuthToken();
     const headers: Record<string, string> = {
@@ -141,33 +148,29 @@ export async function registerPublic(input: {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    // GỌI FETCH TRỰC TIẾP ĐỂ KIỂM SOÁT HOÀN TOÀN KẾT QUẢ
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: "POST",
       headers,
       body: JSON.stringify(input),
     });
 
-    // 🎯 CHÌA KHÓA: Chỉ cần HTTP Status là 2xx (thành công) thì coi như xong!
-    // Bỏ qua việc kiểm tra nội dung JSON rỗng hay không.
     if (res.ok) {
       return true;
     }
 
-    // Nếu có lỗi HTTP (ví dụ 400 Bad Request do trùng lặp)
-    let errorMessage = "Đăng ký thất bại!";
+    let errorMessage = "Registration failed.!";
     try {
       const errorBody = await res.json();
       errorMessage = errorBody?.messenge || errorMessage;
     } catch {
-      // Bỏ qua nếu không parse được lỗi
+
     }
     
-    console.error("Server báo lỗi:", errorMessage);
+    console.error("Server error:", errorMessage);
     return false;
 
   } catch (error) {
-    console.error("Lỗi mạng hoặc hệ thống:", error);
+    console.error("Network or system error:", error);
     return false;
   }
 }
@@ -197,10 +200,19 @@ export async function updatePublicProfile(
         email: updated.email,
         phone: updated.phone,
       });
-      saveSession(fromApi);
-      return fromApi;
+const mappedUser: PublicUser = {
+  userId: fromApi.user_id,
+  username: fromApi.username,
+  fullName: fromApi.full_name,
+  email: fromApi.email,
+  phone: fromApi.phone ?? "",
+  role: fromApi.role as PublicRole,
+};
+
+saveSession(mappedUser);
+return mappedUser;
     } catch {
-      /* local fallback */
+
     }
   }
 

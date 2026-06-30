@@ -13,10 +13,12 @@ export const VolunteerApplyPage = () => {
   const { user } = usePublicAuth();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
     const fd = new FormData(e.currentTarget);
 
     if (USE_MOCK) {
@@ -25,20 +27,29 @@ export const VolunteerApplyPage = () => {
     }
 
     try {
+      const selectedDays = Array.from(fd.getAll("availableDays")).map(String).join(",");
+      const selectedTasks = Array.from(fd.getAll("preferredTasks")).map(String).join(",");
+
       await submitVolunteerApplication({
-        userId: user?.userId,
+        userId: user?.userId || undefined,
         full_name: String(fd.get("fullName") || ""),
         email: String(fd.get("email") || ""),
         phone: String(fd.get("phone") || ""),
+        dateOfBirth: fd.get("dob") ? String(fd.get("dob")) : undefined, 
         address: String(fd.get("city") || ""),
+        occupation: String(fd.get("occupation") || ""),                 
+        skills: String(fd.get("skills") || ""),                       
         experienceWithAnimals: String(fd.get("experience") || ""),
-        reasonToJoin: String(fd.get("availability") || ""),
-        availableDays: String(fd.get("availability") || ""),
-        preferredTasks: String(fd.get("roles") || ""),
+        reasonToJoin: String(fd.get("reason") || ""), 
+        availableDays: selectedDays, 
+        preferredTasks: selectedTasks,
+        has_transport: fd.get("hasTransport") === "1" ? 1 : 0,  
       });
       setSubmitted(true);
-    } catch {
-      setError("Could not submit application. Check API connection and try again.");
+    } catch (err) {
+      setError("Could not submit application. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -54,8 +65,8 @@ export const VolunteerApplyPage = () => {
         <div className="public-container-narrow">
           <div className="mb-10 space-y-3 text-gray-600">
             <p>
-              Volunteers are the backbone of PawsHopeNet. Tell us about your availability, skills, and
-              why you want to join. Applications are reviewed weekly.
+              Currently, PawsHope only accepts volunteers based in Hanoi. 
+              We will respond to your application as soon as possible. Thank you!
             </p>
           </div>
 
@@ -75,51 +86,106 @@ export const VolunteerApplyPage = () => {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border bg-[#fdfaf5] p-5 sm:p-8">
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              
               <div className="public-form-grid">
                 <div>
                   <label className="text-sm font-medium">Full name</label>
-                  <Input name="fullName" required placeholder="Jane Doe" className="mt-1" />
+                  <Input name="fullName" required placeholder="Enter your name" className="mt-1" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Email</label>
-                  <Input name="email" required type="email" placeholder="you@email.com" className="mt-1" />
+                  <Input name="email" required type="email" placeholder="Enter your email" className="mt-1" />
                 </div>
               </div>
 
               <div className="public-form-grid">
                 <div>
                   <label className="text-sm font-medium">Phone</label>
-                  <Input name="phone" required placeholder="+84 ..." className="mt-1" />
+                  <Input name="phone" required placeholder="Enter your phone number" className="mt-1" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">City</label>
-                  <Input name="city" required placeholder="Hanoi" className="mt-1" />
+                  <label className="text-sm font-medium">Date of birth</label>
+                  <Input name="dob" type="date" required className="mt-1" />
+                </div>
+              </div>
+
+              <div className="public-form-grid">
+                <div>
+                  <label className="text-sm font-medium">Your address (in Hanoi)</label>
+                  <Input name="city" required placeholder="Enter your address" className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Occupation</label>
+                  <Input name="occupation" required placeholder="Student, Office worker..." className="mt-1" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-2">Do you have personal transport? (Motorbike, Car...)</label>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="hasTransport" value="1" defaultChecked className="accent-[#f6931d]" />
+                    Yes, I can drive/travel autonomously
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="hasTransport" value="0" className="accent-[#f6931d]" />
+                    No
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Available days in week</label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    { val: "MON", label: "Monday" },
+                    { val: "TUE", label: "Tuesday" },
+                    { val: "WED", label: "Wednesday" },
+                    { val: "THU", label: "Thursday" },
+                    { val: "FRI", label: "Friday" },
+                    { val: "SAT", label: "Saturday" },
+                    { val: "SUN", label: "Sunday" }
+                  ].map((day) => (
+                    <label
+                      key={day.val}
+                      className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-xs cursor-pointer hover:border-[#f6931d]"
+                    >
+                      <input type="checkbox" name="availableDays" value={day.val} className="accent-[#f6931d]" />
+                      {day.label}
+                    </label>
+                  ))}
                 </div>
               </div>
 
               <div>
                 <label className="text-sm font-medium">Preferred roles</label>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {["Rescue dispatch", "Shelter care", "Adoption events", "Social media", "Transport"].map(
-                    (role) => (
-                      <label
-                        key={role}
-                        className="inline-flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm cursor-pointer hover:border-[#f6931d]"
-                      >
-                        <input type="checkbox" name="roles" value={role} className="accent-[#f6931d]" />
-                        {role}
-                      </label>
-                    )
-                  )}
+                  {[
+                    { val: "RESCUE", label: "Rescue Dispatch" },
+                    { val: "FEEDING", label: "Feeding Animals" },
+                    { val: "CLEANING", label: "Shelter Cleaning" },
+                    { val: "MEDICAL_SUPPORT", label: "Medical Support" },
+                    { val: "ADOPTION_SUPPORT", label: "Adoption Support" },
+                    { val: "EVENT", label: "Events" },
+                    { val: "TRANSPORT", label: "Transport" }
+                  ].map((role) => (
+                    <label
+                      key={role.val}
+                      className="inline-flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm cursor-pointer hover:border-[#f6931d]"
+                    >
+                      <input type="checkbox" name="preferredTasks" value={role.val} className="accent-[#f6931d]" />
+                      {role.label}
+                    </label>
+                  ))}
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium">Weekly availability</label>
+                <label className="text-sm font-medium">Skills & Special Qualifications</label>
                 <Textarea
-                  name="availability"
+                  name="skills"
                   required
-                  placeholder="e.g. Weekends, Tue/Thu evenings, flexible for urgent rescues..."
+                  placeholder="Photography, Medical care, Social media, driving license..."
                   className="mt-1"
                 />
               </div>
@@ -134,8 +200,22 @@ export const VolunteerApplyPage = () => {
                 />
               </div>
 
-              <Button type="submit" className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-12">
-                Submit application
+              <div>
+                <label className="text-sm font-medium">Reason to join</label>
+                <Textarea
+                  name="reason"
+                  required
+                  placeholder="Why do you want to volunteer with PawsHope? Tell us your motivation..."
+                  className="mt-1"
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                disabled={isLoading} 
+                className="w-full bg-[#2c5f51] hover:bg-green-800 font-bold h-12"
+              >
+                {isLoading ? "Submitting..." : "Submit application"} 
               </Button>
             </form>
           )}

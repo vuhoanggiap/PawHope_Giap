@@ -37,3 +37,26 @@ export async function fetchAllItemDonations(): Promise<PublicItemDonation[]> {
   const list = await apiFetch<ItemDonationResDto[]>("/item_donations");
   return list.map(mapItemDonationRes);
 }
+
+export async function updateItemDonationStatus(
+  id: number,
+  status: string,
+  receivedBy?: number
+): Promise<PublicItemDonation> {
+  const query = new URLSearchParams({
+    status,
+  });
+
+  if (receivedBy) {
+    query.append("receivedBy", String(receivedBy));
+  }
+
+  const dto = await apiFetch<ItemDonationResDto>(
+    `/item_donations/${id}/status?${query.toString()}`,
+    {
+      method: "PATCH",
+    }
+  );
+
+  return mapItemDonationRes(dto);
+}

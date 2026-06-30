@@ -1,25 +1,11 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { USE_MOCK } from "@/lib/api-client";
 import { getAuthToken } from "@/lib/auth-session";
-import {
-  clearPublicSession,
-  getStoredPublicUser,
-  looksLikeBrokenEncoding,
-  loginPublic,
-  registerPublic,
-  updatePublicProfile,
-  type PublicUser,
-} from "@/lib/public-auth";
+import {  clearPublicSession,  getStoredPublicUser,  looksLikeBrokenEncoding,  loginPublic, 
+  registerPublic, updatePublicProfile,  type PublicUser } from "@/lib/public-auth";
 import { loadCartItemCount } from "@/lib/public-commerce";
 import { loadUnreadNotificationCount } from "@/lib/public-store";
+import { updateUser } from "@/lib/api/users-api"; 
 
 interface PublicAuthContextValue {
   user: PublicUser | null;
@@ -98,18 +84,15 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
       refresh,
       login: async (identifier, password) => {
         const u = await loginPublic(identifier, password);
-        if (!u) return false;
+
         setUser(u);
         void refreshCounts(u);
+
         return true;
       },
       register: async (input) => {
         const isSuccess = await registerPublic(input);
         if (!isSuccess) return false;
-        
-        // 🎯 ĐÃ SỬA CHỖ NÀY:
-        // API trả về boolean. Đăng ký xong chỉ cần trả về true.
-        // KHÔNG gán setUser(isSuccess) để tránh lỗi sập dữ liệu (crash).
         return true;
       },
       logout: () => {
@@ -118,13 +101,26 @@ export function PublicAuthProvider({ children }: { children: ReactNode }) {
         setUnreadCount(0);
         setCartCount(0);
       },
+
       updateProfile: (patch) => {
-        void updatePublicProfile(patch).then((u) => {
-          if (u) {
-            setUser(u);
-            void refreshCounts(u);
-          }
-        });
+        if (!user?.userId) return;
+
+        void updateUser(user.userId, {
+          username: user.username, 
+          fullName: patch.fullName ?? user.fullName,
+          email: patch.email ?? user.email,
+          phone: patch.phone ?? user.phone,
+        })
+          .then((updatedUser) => {
+            if (updatedUser) {
+              setUser(updatedUser as any);
+              updatePublicProfile(patch);
+              void refreshCounts(updatedUser as any);
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to update real database profile:", err);
+          });
       },
     }),
     [user, unreadCount, cartCount, refresh, refreshCounts]

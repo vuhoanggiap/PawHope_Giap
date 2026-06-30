@@ -1,27 +1,8 @@
-import { useEffect, useState, useRef, memo } from "react"; // 🌟 Thêm useRef và memo
+import { useEffect, useState, useRef, memo } from "react"; 
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  LifeBuoy,
-  Dog,
-  Warehouse,
-  HeartHandshake,
-  Wallet,
-  ShoppingBag,
-  Package,
-  Receipt,
-  Users,
-  UserPlus,
-  Bell,
-  PawPrint,
-  LogOut,
-  ExternalLink,
-  Settings,
-  Mail,
-  CalendarDays,
-  CalendarCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Dog, Warehouse, HeartHandshake, Wallet, ShoppingBag,
+  Package, Receipt, Users, UserPlus, Bell, PawPrint, LogOut, ExternalLink, Settings,
+  Mail, MessageSquare, CalendarDays, CalendarCheck, type LucideIcon } from "lucide-react";
 import { clearAdminSession, getStoredAdmin, type StaffRole } from "@/lib/admin-auth";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -48,6 +29,7 @@ const allLinks: NavItem[] = [
   { to: "/admin/my-schedule", label: "My schedule", icon: CalendarCheck, onlyRoles: ["VOLUNTEER"] },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, onlyRoles: ["ADMIN"] },
   { to: "/admin/expenses", label: "Expenses", icon: Receipt, onlyRoles: ["ADMIN"] },
+  { to: "/admin/contact-messages", label: "Contact Messages", icon: MessageSquare, onlyRoles: ["ADMIN"],},
   { to: "/admin/users", label: "Users", icon: Users, onlyRoles: ["ADMIN"] },
   { to: "/admin/volunteers", label: "Volunteers", icon: UserPlus, onlyRoles: ["ADMIN"] },
   { to: "/admin/volunteer-schedule", label: "Schedule", icon: CalendarDays, onlyRoles: ["ADMIN"] },
@@ -68,7 +50,6 @@ interface AdminSidebarProps {
   onNavigate: () => void;
 }
 
-// 🌟 Dùng memo để bao bọc toàn bộ Component
 export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate }: AdminSidebarProps) {
   const navigate = useNavigate();
   const user = getStoredAdmin();
@@ -76,7 +57,6 @@ export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate 
 
   const [pendingCount, setPendingCount] = useState<number>(0);
   
-  // 🌟 KHÓA CHẶN 1: Dùng useRef để giữ kết nối không bị khởi tạo lại kể cả khi component cha bắt ép re-render
   const stompClientRef = useRef<Client | null>(null);
 
   const fetchPendingCount = () => {
@@ -91,10 +71,9 @@ export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate 
   useEffect(() => {
     fetchPendingCount();
 
-    // 🌟 KHÓA CHẶN 2: Nếu đã có một kết nối đang chạy rồi thì bỏ qua không tạo thêm kết nối mới
     if (stompClientRef.current) return;
 
-    const socket = new SockJS("http://localhost:8082/ws");
+    const socket = new SockJS("http://localhost:8080/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -109,10 +88,9 @@ export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate 
     });
 
     stompClient.activate();
-    stompClientRef.current = stompClient; // Lưu vào ref
+    stompClientRef.current = stompClient; 
 
     return () => {
-      // Tuyệt đối không ngắt kết nối bừa bãi khi re-render thông thường
     };
   }, []); 
 
@@ -193,4 +171,4 @@ export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate 
       </div>
     </aside>
   );
-}); // 🌟 Đóng gói memo ở đây
+}); 

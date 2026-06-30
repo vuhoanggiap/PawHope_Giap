@@ -8,6 +8,8 @@ export type ApiCartLine = {
   quantity: number;
   product_name: string;
   price: number;
+  image_url?: string;     
+  stock_quantity: number;
 };
 
 export function mapCartLine(dto: CartResDto): ApiCartLine {
@@ -17,6 +19,8 @@ export function mapCartLine(dto: CartResDto): ApiCartLine {
     quantity: dto.quantity,
     product_name: dto.productName,
     price: toNumber(dto.price),
+    image_url: dto.imageUrl || "",
+    stock_quantity: dto.stockQuantity ?? 0,
   };
 }
 

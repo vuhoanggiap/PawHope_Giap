@@ -3,15 +3,15 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockAdoptions } from "@/data/admin-mock";
 import { loadAdoptions } from "@/lib/admin/admin-data";
-import { ChevronRight, ChevronLeft, Search } from "lucide-react"; // Import thêm ChevronLeft
+import { ChevronRight, ChevronLeft, Search } from "lucide-react"; 
 import { useEffect, useState } from "react";
 
-const ITEMS_PER_PAGE = 20; // Cấu hình số dòng tối đa trên 1 trang
+const ITEMS_PER_PAGE = 20; 
 
 export function AdminAdoptionsPage() {
   const [adoptions, setAdoptions] = useState(mockAdoptions);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1); // State quản lý trang hiện tại
+  const [currentPage, setCurrentPage] = useState(1); 
 
   useEffect(() => {
     void loadAdoptions().then(setAdoptions);
@@ -33,7 +33,6 @@ export function AdminAdoptionsPage() {
     }
   };
 
-  // 1. Lọc và Sắp xếp toàn bộ dữ liệu
   const filteredAndSortedAdoptions = adoptions
     .filter((a) => {
       if (!searchTerm) return true;
@@ -56,7 +55,6 @@ export function AdminAdoptionsPage() {
       return new Date(b.apply_date).getTime() - new Date(a.apply_date).getTime();
     });
 
-  // 2. Tính toán phân trang
   const totalPages = Math.ceil(filteredAndSortedAdoptions.length / ITEMS_PER_PAGE);
   
   const paginatedAdoptions = filteredAndSortedAdoptions.slice(
@@ -81,14 +79,13 @@ export function AdminAdoptionsPage() {
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
-            setCurrentPage(1); // Reset về trang 1 khi người dùng gõ tìm kiếm mới
+            setCurrentPage(1); 
           }}
           className="block w-full pl-10 pr-3 py-2 border border border-slate-700 rounded-md leading-5 bg-[#0f172a] text-slate-300 placeholder-slate-500 focus:outline-none focus:bg-[#1e293b] focus:border-[#f6931d] focus:ring-1 focus:ring-[#f6931d] sm:text-sm transition-colors"
         />
       </div>
 
       <div className="space-y-3">
-        {/* Render danh sách đã được cắt (paginated) thay vì toàn bộ */}
         {paginatedAdoptions.map((a) => (
           <Link
             key={a.adoption_id}
@@ -121,7 +118,6 @@ export function AdminAdoptionsPage() {
           </div>
         )}
 
-        {/* --- THANH ĐIỀU HƯỚNG PHÂN TRANG (Chỉ hiện khi tổng số dòng vượt quá 20) --- */}
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-800 pt-4 mt-6 gap-4 text-sm text-slate-400">
             <div>

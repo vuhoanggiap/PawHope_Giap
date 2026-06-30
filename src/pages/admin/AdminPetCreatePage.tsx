@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom"; // Thêm useLocation
+import { Link, useNavigate, useLocation } from "react-router-dom"; 
 import { ArrowLeft } from "lucide-react";
 import { AdminPanel, AdminFieldGrid } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
@@ -9,13 +9,10 @@ import { loadKennels, loadRescueReports } from "@/lib/admin/admin-data";
 
 export function AdminPetCreatePage() {
   const navigate = useNavigate();
-  const location = useLocation(); // Nhận dữ liệu truyền từ trang khác sang (nếu có)
-  const prefill = location.state || {}; // Nếu không có data thì dùng object rỗng để form trống
-
+  const location = useLocation();
+  const prefill = location.state || {}; 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Load danh sách chuồng và đơn cứu hộ để hiển thị trong dropdown
   const [kennels, setKennels] = useState<any[]>([]);
   const [rescues, setRescues] = useState<any[]>([]);
 
@@ -28,7 +25,6 @@ export function AdminPetCreatePage() {
       .catch((err) => console.error("Error loading auxiliary data:", err));
   }, []);
 
-  // State khởi tạo form, ưu tiên lấy dữ liệu từ prefill nếu có
   const [formData, setFormData] = useState({
     name: "",
     species: "DOG",
@@ -38,10 +34,9 @@ export function AdminPetCreatePage() {
     weightKg: "",
     healthStatus: "HEALTHY",
     personality: "",
-    status: "NOT_READY_FOR_ADOPTION", // Mặc định chưa sẵn sàng nhận nuôi
-    intakeDate: new Date().toISOString().split("T")[0], // Mặc định hôm nay
+    status: "NOT_READY_FOR_ADOPTION", 
+    intakeDate: new Date().toISOString().split("T")[0], 
     kennelId: "",
-    // Các trường dưới đây sẽ tự điền nếu đi từ trang Cứu hộ sang
     imageUrl: prefill.imageUrl || "",
     description: prefill.description || "",
     fromReportId: prefill.fromReportId || "",
@@ -59,7 +54,6 @@ export function AdminPetCreatePage() {
     setLoading(true);
     setError(null);
 
-    // Ép kiểu dữ liệu trước khi gửi xuống Spring Boot
     const payload = {
       ...formData,
       ageMonths: formData.ageMonths ? parseInt(formData.ageMonths) : null,
@@ -74,15 +68,11 @@ export function AdminPetCreatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      // Bỏ qua việc tìm ID rườm rà, API không văng lỗi là lưu thành công!
       alert("Pet profile created successfully!");
-      
-      // Chuyển thẳng ra trang danh sách thú cưng
       navigate("/admin/pets"); 
 
     } catch (err: any) {
-      console.error("❌ Caught error:", err);
+      console.error("Caught error:", err);
       setError(err.message || "An error occurred while creating the pet profile.");
     } finally {
       setLoading(false);

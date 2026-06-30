@@ -3,10 +3,9 @@ import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { apiFetch } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatVnd";
-import { getCartSubtotal } from "@/lib/public-commerce"; // Đã loại bỏ import thừa gây lỗi warning
+import { getCartSubtotal } from "@/lib/public-commerce"; 
 import { Bell, ChevronRight, HeartHandshake, LifeBuoy, Search, ShoppingBag, ShoppingCart, CalendarClock } from "lucide-react";
 
-// --- LIVE DATABASE INTERFACES ---
 interface BackendAdoption {
   id?: number; 
   adoption_id?: number;
@@ -148,7 +147,7 @@ export function AccountDashboardPage() {
     },
   ];
 
-  return (
+  return (    
     <div className="space-y-6">
       {cartCount > 0 ? (
         <Link
@@ -202,8 +201,6 @@ export function AccountDashboardPage() {
 
         {latestOrder || latestAdoption || recentNotifications.length > 0 || latestMeeting || latestRescue ? (
           <div className="space-y-3">
-            
-            {/* 1. Interview Schedule Notification Banner */}
             {latestMeeting && latestAdoption && (
               <Link
                 to={`/account/adoptions/${safeGetAdoptionId(latestAdoption)}`}
@@ -246,7 +243,6 @@ export function AccountDashboardPage() {
               </Link>
             ) : null}
 
-            {/* 🌟 ĐÃ KHẮC PHỤC LẶP: Thêm điều kiện !latestMeeting để ẩn thẻ này khi banner cam đang hiện */}
             {latestAdoption && !latestMeeting ? (
               <Link
                 to={`/account/adoptions/${safeGetAdoptionId(latestAdoption)}`}

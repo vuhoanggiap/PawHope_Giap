@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { USE_MOCK } from "@/lib/api-client";
 import { PawPrint } from "lucide-react";
+import { ApiError } from "@/lib/api-client";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -27,12 +28,16 @@ export function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const ok = await login(identifier, password);
-      if (!ok) {
-        setError(USE_MOCK ? "Invalid username or password." : "Invalid email or password.");
-        return;
-      }
+      await login(identifier, password);
       navigate(from, { replace: true });
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setError(e.message);
+      } else if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError("Login failed.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -70,7 +75,7 @@ export function LoginPage() {
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
                   type={USE_MOCK ? "text" : "email"}
-                  placeholder={USE_MOCK ? "user1 or jane@example.com" : "user1@example.com"}
+                  placeholder= "Enter your email"
                   className="mt-1"
                   autoComplete={USE_MOCK ? "username" : "email"}
                 />
@@ -82,7 +87,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   className="mt-1"
                   autoComplete="current-password"
                 />
@@ -94,15 +99,6 @@ export function LoginPage() {
               >
                 {submitting ? "Signing in…" : "Sign in"}
               </Button>
-              {/* <p className="text-xs text-gray-500 text-center leading-relaxed">
-                {USE_MOCK ? (
-                  <>
-                    Demo mock: <code className="text-gray-600">user1 / user123</code>
-                  </>
-                ) : (
-                  <>Sign in with email + password from the database (Spring Boot).</>
-                )}
-              </p> */}
               <p className="text-center text-sm text-gray-500">
                 No account?{" "}
                 <Link to="/register" className="text-[#f6931d] font-bold hover:underline">

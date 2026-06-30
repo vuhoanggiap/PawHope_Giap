@@ -5,11 +5,10 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { apiFetch } from "@/lib/api-client";
 import { CalendarPlus, X, CheckCircle, XCircle, Calendar, Clock, ChevronDown, MapPin, Video, Phone } from "lucide-react";
 
-// 🌟 DANH SÁCH CÁC TRẠM/CƠ SỞ ĐỂ CHỌN NHANH
 const SHELTER_LOCATIONS = [
   { 
     id: "hanoi_pet_adoption", 
-    name: "Hanoi Pet Adoption Shelter. Address: Alley 15, Cot Moc Street, Doai Phuong, Hanoi, Vietnam"
+    name: "Hanoi Pet Adoption Shelter. Address: No 10 Dan Phuong, Ha Noi, Vietnam"
   },
   { 
     id: "saigon_time_rescue", 
@@ -43,24 +42,17 @@ export function AdoptionMeetingsTab({
   const [meetingLocation, setMeetingLocation] = useState("");
   const [meetingNote, setMeetingNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [openCreatePicker, setOpenCreatePicker] = useState(false);
   const [internalDate, setInternalDate] = useState("");
   const [internalHour, setInternalHour] = useState("08");
   const [internalMinute, setInternalMinute] = useState("00");
-
   const [rescheduleData, setRescheduleData] = useState<{ id: number; dateStr: string; date: string; hour: string; minute: string } | null>(null);
   const [openReschedulePicker, setOpenReschedulePicker] = useState(false);
-
-  // 🌟 ĐÃ SỬA: State quản lý kiểu nhập địa điểm: Tại trạm (SHELTER) hoặc Phỏng vấn Trực tuyến (ONLINE)
   const [locationType, setLocationType] = useState<"SHELTER" | "ONLINE">("SHELTER");
-  
-  // Các state bổ trợ riêng cho hình thức ONLINE để gộp chuỗi văn bản lưu xuống DB
   const [onlinePlatform, setOnlinePlatform] = useState("GOOGLE_MEET");
   const [onlineLink, setOnlineLink] = useState("");
   const [zaloPhone, setZaloPhone] = useState("");
 
-  // 🌟 TỰ ĐỘNG GỘP THÔNG TIN ONLINE THÀNH CHUỖI MỖI KHI CÁC Ô NHẬP LIỆU THAY ĐỔI
   useEffect(() => {
     if (locationType === "ONLINE") {
       if (onlinePlatform === "GOOGLE_MEET") {
@@ -130,7 +122,7 @@ export function AdoptionMeetingsTab({
         
         {isMeetingLocked ? (
           <span className="text-xs text-green-400 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20 font-medium">
-            ✅ Schedule locked · Applicant has confirmed or finished the interview process
+            Schedule locked · Applicant has confirmed or finished the interview process
           </span>
         ) : (
           <button
@@ -153,7 +145,6 @@ export function AdoptionMeetingsTab({
         <AdminPanel title="Schedule New Interview Meeting">
           <form onSubmit={handleScheduleMeeting} className="space-y-4">
             <AdminFieldGrid cols={2}>
-              {/* KHỐI CHỌN THỜI GIAN GIỮ NGUYÊN GỐC 100% */}
               <div className="relative flex flex-col">
                 <label className="block text-xs uppercase tracking-wide text-slate-500 mb-1">Meeting Time</label>
                 <div
@@ -218,8 +209,7 @@ export function AdoptionMeetingsTab({
                   </div>
                 )}
               </div>
-
-              {/* 🌟 KHỐI ĐÃ SỬA: ĐIỀU HƯỚNG LOCATION THÀNH TẠI TRẠM HOẶC ONLINE ĐỒNG BỘ CSS */}
+\
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-xs uppercase tracking-wide text-slate-500">Location</label>
@@ -251,23 +241,21 @@ export function AdoptionMeetingsTab({
                     <option value="">-- Choose a shelter address --</option>
                     {SHELTER_LOCATIONS.map((loc) => (
                       <option key={loc.id} value={loc.name}>
-                        📌 {loc.name}
+                        {loc.name}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <div className="space-y-2">
-                    {/* Hộp chọn nền tảng Online */}
                     <select
                       value={onlinePlatform}
                       onChange={(e) => { setOnlinePlatform(e.target.value); setOnlineLink(""); setZaloPhone(""); }}
                       className={adminInputClass()}
                     >
-                      <option value="GOOGLE_MEET">📹 Google Meet (Provide URL link)</option>
-                      <option value="ZALO">💬 Zalo Chat (Provide Phone number)</option>
+                      <option value="GOOGLE_MEET">Google Meet (Provide URL link)</option>
+                      <option value="ZALO">Zalo Chat (Provide Phone number)</option>
                     </select>
 
-                    {/* Hiển thị Input tương ứng dựa theo nền tảng được chọn */}
                     {onlinePlatform === "GOOGLE_MEET" ? (
                       <input
                         type="url"
@@ -313,8 +301,6 @@ export function AdoptionMeetingsTab({
           <AdminPanel key={m.meetingId} title={`Meeting · ${new Date(m.meetingDatetime).toLocaleString('en-US')}`}>
             <AdminFieldGrid cols={3}>
               <AdminField label="Staff" value={`Staff #${m.staffId}`} />
-              
-              {/* Tối ưu hiển thị Icon tương ứng với từng hình thức lưu trữ ngoài màn hình danh sách */}
               <AdminField 
                 label="Location" 
                 value={
@@ -490,7 +476,7 @@ export function AdoptionMeetingsTab({
                       }}
                       className="text-xs font-bold text-[#f6931d] hover:text-white flex items-center gap-1 transition-colors"
                     >
-                      ⚙️ Update official schedule
+                      Update official schedule
                     </button>
                   )}
                 </div>

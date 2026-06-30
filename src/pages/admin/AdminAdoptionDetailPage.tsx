@@ -5,23 +5,14 @@ import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockAdoptions } from "@/data/admin-mock";
-import {
-  applyAdoptionAction,
-  getStaffName,
-  loadAdoptionFollowups,
-  loadAdoptions,
-} from "@/lib/admin/admin-data";
+import { applyAdoptionAction, getStaffName, loadAdoptionFollowups, loadAdoptions } from "@/lib/admin/admin-data";
 import { ApiError, USE_MOCK } from "@/lib/api-client";
 import { staffIsAdmin } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
 import { ArrowLeft } from "lucide-react";
-
-// Import 3 sub-tab components cục bộ vừa refactor
 import { AdoptionMeetingsTab } from "./components/AdoptionMeetingsTab";
 import { AdoptionHandoverTab } from "./components/AdoptionHandoverTab";
 import { AdoptionFollowupsTab } from "./components/AdoptionFollowupsTab";
-
-// Import Custom Hooks kết nối Database thật
 import { useAdoptionHandovers } from "@/hooks/useAdoptionHandovers";
 import { useAdoptionMeetings } from "@/hooks/useAdoptionMeetings";
 
@@ -31,19 +22,12 @@ export function AdminAdoptionDetailPage() {
   const canEditWorkflow = staffIsAdmin();
   const { id } = useParams();
   const adoptionId = Number(id);
-  
-  const [adoption, setAdoption] = useState(
-    () => mockAdoptions.find((a) => a.adoption_id === adoptionId)
-  );
-  
+  const [adoption, setAdoption] = useState(() => mockAdoptions.find((a) => a.adoption_id === adoptionId));
   const [followups, setFollowups] = useState<FollowupRow[]>([]);
   const [tab, setTab] = useState("application");
   const [message, setMessage] = useState<string | null>(null);
-
-  // --- DATABASE HOOKS ---
   const { handovers, refetch: refetchHandovers, completeHandover } = useAdoptionHandovers();
   const { meetings: apiMeetings, refetch: refetchMeetings, updateResult } = useAdoptionMeetings();
-
   const [displayMeetings, setDisplayMeetings] = useState<any[]>([]);
   const currentHandovers = handovers.filter(h => h.adoptionId === adoptionId);
 
@@ -214,16 +198,15 @@ export function AdminAdoptionDetailPage() {
                       ✓ Approve
                     </button>
                   ) : (
-                    // 🌟 TỐI ƯU UX: Thay thế nút khóa tĩnh thành nút chuyển Tab hẹn lịch thông minh
                     <button type="button" onClick={() => setTab("meetings")} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-full transition-all shadow-md active:scale-95">
-                      🗓️ Schedule Interview (Go to Meetings)
+                      Schedule Interview (Go to Meetings)
                     </button>
                   )
                 )}
 
                 {adoption.status === "APPROVED" && (
                   <button type="button" onClick={() => runAction("complete")} className="px-4 py-1.5 bg-[#f6931d] hover:bg-orange-600 text-white text-xs font-semibold rounded-full transition-colors shadow-lg">
-                    🎉 Complete Adoption
+                    Complete Adoption
                   </button>
                 )}
 
@@ -272,7 +255,7 @@ export function AdminAdoptionDetailPage() {
           applicantEmail={adoption.applicant_email}
           petName={adoption.pet_name}
           followups={followups}
-          currentHandovers={currentHandovers} // 🌟 Thêm dòng này vào là hết lỗi
+          currentHandovers={currentHandovers} 
           onWorkflowReload={reloadWorkflow}
           getStaffId={getStaffId}
         />

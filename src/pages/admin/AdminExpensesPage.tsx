@@ -88,7 +88,7 @@ export function AdminExpensesPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="admin-input mt-1 h-10"
+                className="mt-1 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400"
               />
             </div>
             <div>
@@ -97,16 +97,16 @@ export function AdminExpensesPage() {
                 type="date"
                 value={expenseDate}
                 onChange={(e) => setExpenseDate(e.target.value)}
-                className="admin-input mt-1 h-10"
+                className="mt-1 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400"
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Receipt image URL</label>
+              <label className="mt-1 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400">Receipt image URL</label>
               <Input
                 value={receiptUrl}
                 onChange={(e) => setReceiptUrl(e.target.value)}
                 placeholder="https://..."
-                className="admin-input mt-1 h-10"
+                className="mt-1 h-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400"
               />
             </div>
             <div className="sm:col-span-2">
@@ -115,7 +115,7 @@ export function AdminExpensesPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What was purchased..."
-                className="admin-input mt-1 min-h-[88px]"
+                className="mt-1 min-h-[88px] bg-slate-900 border-slate-700 text-white placeholder:text-slate-400"
               />
             </div>
             <div className="sm:col-span-2 flex items-center gap-4">

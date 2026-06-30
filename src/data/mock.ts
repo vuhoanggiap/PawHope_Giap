@@ -40,6 +40,7 @@ export interface MockGuideline {
   id: number;
   title: string;
   content: string;
+  imageUrl: string;
   priority: number;
 }
 
@@ -242,24 +243,28 @@ export const adoptionGuidelines: MockGuideline[] = [
     id: 1,
     title: "Stable living situation",
     content: "Adopters should have a secure home and landlord approval if renting.",
+    imageUrl: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600",
     priority: 1,
   },
   {
     id: 2,
     title: "Commitment to medical care",
     content: "You agree to vaccinations, parasite prevention, and annual vet visits.",
+    imageUrl: "https://images.unsplash.com/photo-1534361960057-19889db9621e?w=600",
     priority: 2,
   },
   {
     id: 3,
     title: "Home visit & trial period",
     content: "We may schedule a home check and a 7-day adjustment period when needed.",
+    imageUrl: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600",
     priority: 3,
   },
   {
     id: 4,
     title: "No breeding or resale",
     content: "Adopted animals must be spayed/neutered when age-appropriate and never sold.",
+    imageUrl: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600",
     priority: 4,
   },
 ];

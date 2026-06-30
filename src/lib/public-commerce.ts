@@ -23,6 +23,7 @@ import { createDonation, fetchDonationsByUser } from "@/lib/api/donations-api";
 import { createItemDonation, fetchItemDonationsByUser } from "@/lib/api/item-donations-api";
 import { checkoutFromCart, fetchOrdersByUser, fetchOrderById } from "@/lib/api/orders-api";
 import { fetchActiveProducts, fetchProductById } from "@/lib/api/products-api";
+import { mapOrderRes } from "@/lib/api/mappers";
 
 const CART_KEY = "pawshope_public_cart";
 const ORDERS_KEY = "pawshope_public_orders";
@@ -178,13 +179,15 @@ export async function loadUserCart(userId: number): Promise<ApiCartLine[]> {
       quantity: l.quantity,
       product_name: getProduct(l.product_id)?.product_name ?? "",
       price: getProduct(l.product_id)?.price ?? 0,
+      stock_quantity: getProduct(l.product_id)?.stock_quantity ?? 999,
+      image_url: getProduct(l.product_id)?.image_url ?? "",
     }));
   }
 
   try {
     const lines = await fetchCartByUser(userId);
-    apiCartCache.set(userId, lines);
-    return lines;
+    apiCartCache.set(userId, lines as any);
+    return lines as any;
   } catch {
     return [];
   }
@@ -445,7 +448,7 @@ export async function checkout(
   }
 
   try {
-    const order = await checkoutFromCart({
+    const dto = await checkoutFromCart({
       userId,
       shippingFee: SHIPPING_FEE,
       shippingAddress: input.shipping_address,
@@ -453,6 +456,8 @@ export async function checkout(
       receiverPhone: input.receiver_phone,
       note: input.note,
     });
+
+    const order = mapOrderRes(dto as any);
 
     apiOrdersCache.set(userId, [order, ...(apiOrdersCache.get(userId) ?? [])]);
     apiCartCache.set(userId, []);
@@ -581,14 +586,24 @@ export async function loadUserDonations(userId: number): Promise<{
   }
 
   try {
+    await loadCampaigns();
+
     const [money, items] = await Promise.all([
       fetchDonationsByUser(userId),
       fetchItemDonationsByUser(userId),
     ]);
 
+    const mappedMoney = money.map((d) => {
+      const campaign = getCampaign(d.campaign_id);
+      return {
+        ...d,
+        campaign_title: d.campaign_title || campaign?.title || `Campaign #${d.campaign_id}`,
+      };
+    });
+
     apiItemDonationsCache.set(userId, items);
 
-    return { money, items };
+    return { money: mappedMoney, items };
   } catch {
     return {
       money: getUserMoneyDonations(userId),

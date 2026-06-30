@@ -4,19 +4,8 @@ import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import {
-  mockAdminPets,
-  mockKennels,
-  mockPetMedicalRecords,
-  mockPetStatusLogs,
-  mockRescueReports,
-} from "@/data/admin-mock";
-import {
-  loadAdminPets,
-  loadKennels,
-  loadPetMedicalRecords,
-  loadPetStatusLogs,
-  loadRescueReports,
+import { mockAdminPets, mockKennels, mockPetMedicalRecords, mockPetStatusLogs, mockRescueReports } from "@/data/admin-mock";
+import { loadAdminPets, loadKennels, loadPetMedicalRecords, loadPetStatusLogs, loadRescueReports,
   type AdminPetRow,
   type AdminRescueRow,
 } from "@/lib/admin/admin-data";
@@ -28,10 +17,7 @@ import { getStaffUser } from "@/lib/admin/admin-role";
 export function AdminPetDetailPage() {
   const { id } = useParams();
   const petId = Number(id);
-  //const navigate = useNavigate();
   const staff = getStaffUser(); 
-  
-  // States
   const [pet, setPet] = useState<AdminPetRow | any>(() =>
     mockAdminPets.find((p) => p.pet_id === petId) as AdminPetRow | undefined
   );
@@ -43,13 +29,10 @@ export function AdminPetDetailPage() {
   const [rescues, setRescues] = useState<AdminRescueRow[]>(
     mockRescueReports as AdminRescueRow[]
   );
-  
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [tab, setTab] = useState("profile");
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // States Medical
   const [isAddingMedical, setIsAddingMedical] = useState(false);
   const [newMedical, setNewMedical] = useState({
     recordType: "VACCINATION",
@@ -57,8 +40,6 @@ export function AdminPetDetailPage() {
     nextDueDate: "",
     description: "",
   });
-
-  // --- STATE CHO FORM STATUS LOG MỚI ---
   const [isAddingLog, setIsAddingLog] = useState(false);
   const [newLog, setNewLog] = useState({
     newStatus: "AVAILABLE_FOR_ADOPTION",
@@ -76,9 +57,7 @@ export function AdminPetDetailPage() {
     ]).then(([pets, kennelList, rescueList, medicalList, logList]) => {
       const currentPet = pets.find((p: any) => (p.pet_id || p.petId) === petId);
       setPet(currentPet);
-      // Mặc định newStatus là trạng thái hiện tại của pet
       if (currentPet) setNewLog(prev => ({ ...prev, newStatus: currentPet.status }));
-      
       setKennels(kennelList);
       setRescues(rescueList);
       setMedical(medicalList);
@@ -161,7 +140,6 @@ export function AdminPetDetailPage() {
     }
   };
 
-  // --- HÀM THÊM MỚI STATUS LOG ---
   const handleAddLog = async () => {
     if (!newLog.note.trim()) {
       alert("Please enter a note / reason for the status change.");
@@ -171,8 +149,8 @@ export function AdminPetDetailPage() {
     try {
       const payload = {
         petId: petId,
-        oldStatus: pet.status, // Trạng thái cũ lấy từ pet hiện tại
-        newStatus: newLog.newStatus, // Trạng thái mới Admin chọn
+        oldStatus: pet.status, 
+        newStatus: newLog.newStatus, 
         note: newLog.note,
         updatedBy: staff?.userId
       };
@@ -182,14 +160,10 @@ export function AdminPetDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       alert("Status updated and logged successfully!");
-      
-      // Cập nhật lại pet state và form
       setPet({ ...pet, status: newLog.newStatus });
       setNewLog({ newStatus: newLog.newStatus, note: "" });
 
-      // Reload danh sách logs
       const updatedLogs = await loadPetStatusLogs(petId);
       setLogs(updatedLogs);
     } catch (err: any) {
@@ -258,7 +232,6 @@ export function AdminPetDetailPage() {
         className="mb-6"
       />
 
-      {/* --- TAB PROFILE --- */}
       {tab === "profile" ? (
         <AdminPanel 
           title="Pet profile"
@@ -392,11 +365,9 @@ export function AdminPetDetailPage() {
         </AdminPanel>
       ) : null}
 
-      {/* --- TAB MEDICAL --- */}
       {tab === "medical" ? (
         <div className="space-y-4">
           <AdminPanel title="Add new medical record">
-            {/* Form Medical giữ nguyên như cũ */}
             <AdminFieldGrid cols={3}>
               <div className="space-y-1">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Type *</p>
@@ -442,7 +413,6 @@ export function AdminPetDetailPage() {
         </div>
       ) : null}
 
-      {/* --- TAB STATUS LOGS NÂNG CẤP --- */}
       {tab === "logs" ? (
         <div className="space-y-4">
           <AdminPanel title="Update Status & Add Log">
@@ -496,7 +466,6 @@ export function AdminPetDetailPage() {
             </div>
           </AdminPanel>
 
-          {/* LỊCH SỬ LOG CŨ */}
           <div className="space-y-3 mt-6">
             {logs.map((log: any) => (
               <div key={log.log_id || log.logId} className="admin-card p-4">

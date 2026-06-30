@@ -51,7 +51,6 @@ export interface PublicNotification {
   related_id?: number;
 }
 
-/** Demo codes visitors can try on /rescue/track */
 export const demoRescueReports: PublicRescueReport[] = [
   {
     tracking_code: "RSC-2026-DEMO1",
@@ -159,7 +158,6 @@ export interface PublicProduct {
 export interface PublicCartLine {
   product_id: number;
   quantity: number;
-  /** Set when loaded from Spring Boot cart API */
   cart_id?: number;
 }
 
@@ -218,6 +216,9 @@ export interface PublicItemDonation {
   category: string;
   quantity: string;
   status: string;
+  received_by?: number;
+  note?: string;
+  received_at?: string;
   created_at: string;
 }
 

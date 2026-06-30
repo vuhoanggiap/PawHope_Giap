@@ -45,8 +45,6 @@ export function StatusTimeline({
               >
                 {done ? <Check size={14} /> : <span className="text-xs font-bold">{i + 1}</span>}
               </span>
-              
-              {/* Thêm thẻ div bọc nội dung và padding-left (pl-3) để tách chữ ra xa icon */}
               <div className="pl-3">
                 <p
                   className={cn(

@@ -52,13 +52,10 @@ function staffFromRole(role: string): StaffRole | null {
   return null;
 }
 
-// Hàm này tự chuyển đổi các chữ rút gọn thành email mẫu.
-// 🛠️ BẠN CÓ THỂ ĐỔI "admin@pawshope.net" THÀNH EMAIL THẬT TRONG DB CỦA BẠN TẠI ĐÂY
 function loginIdentifierToEmail(identifier: string): string {
   const trimmed = identifier.trim();
   if (trimmed.includes("@")) return trimmed;
-  
-  // Nếu gõ "admin", đổi thành email tương ứng (Hãy chỉnh lại cho khớp với email admin trong DB của bạn)
+
   if (trimmed.toLowerCase() === "admin") return "admin@pawshope.com"; 
   
   const demo = DEMO_ACCOUNTS[trimmed.toLowerCase()];
@@ -80,25 +77,21 @@ export async function loginAdmin(
 
   const email = loginIdentifierToEmail(identifier);
   try {
-    // 1. Gọi hàm fetch sang Spring Boot
     const res = await loginWithEmail(email, password);
-    
-    // 2. Không dùng res.data nữa, sử dụng trực tiếp res vì hệ thống đã tự bóc tách lớp vỏ API
+
     const role = staffFromRole(res.role);
     if (!role) {
       throw new ApiError(
         "This account is not staff (ADMIN or VOLUNTEER). Use the public login page."
       );
     }
-    
-    // 3. Lưu Token vào Session bảo mật
+  
     setAuthToken(res.token);
-    
-    // 4. Đồng bộ map dữ liệu sang Interface React
+
     const user: AdminUser = {
       userId: res.userId,
       username: res.username,
-      fullName: res.fullName, // Nếu Java trả về full_name thì đổi thành res.full_name
+      fullName: res.fullName, 
       email: res.email,
       role,
     };

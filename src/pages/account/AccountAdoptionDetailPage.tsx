@@ -39,7 +39,6 @@ export function AccountAdoptionDetailPage() {
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleShift, setRescheduleShift] = useState("");
 
-  // State phục vụ riêng cho Modal Đổi lịch Handover
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [handoverRescheduleDate, setHandoverRescheduleDate] = useState("");
   const [handoverRescheduleShift, setHandoverRescheduleShift] = useState("");
@@ -85,17 +84,16 @@ export function AccountAdoptionDetailPage() {
       .catch((e) => console.log("No follow-up records found", e));
   };
 
-  // 🌟 ĐỒNG BỘ WEBSOCKET: Tự động cập nhật UI tức thì khi Admin ấn Approve & Confirm
   useEffect(() => {
     if (!id) return;
 
-    const socket = new SockJS("http://localhost:8082/ws"); // Điều chỉnh đúng port backend của bạn
+    const socket = new SockJS("http://localhost:8080/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
       onConnect: () => {
         console.log("Connected to WebSocket Broker successfully!");
-        stompClient.subscribe(`/topic/adoption/${id}`, (message: any) => { // 🌟 Thêm kiểu ": any" ở đây
+        stompClient.subscribe(`/topic/adoption/${id}`, (message: any) => { 
         if (message.body === "HANDOVER_UPDATED") {
           console.log("Received notification from admin. Refreshing workflow...");
           loadWorkflowSchedules(); 
@@ -169,7 +167,6 @@ export function AccountAdoptionDetailPage() {
     const proposedText = `Customer requested handover reschedule:\nDate: ${handoverRescheduleDate}\nTime: ${handoverRescheduleShift} (${shiftLabel})`;
 
     try {
-      // 🌟 FIXED PATH: Sử dụng đúng định dạng url gạch dưới và không có tiền tố lặp thừa
       await apiFetch(`/adoption_handovers/${targetHandoverId}/reschedule-request?note=${encodeURIComponent(proposedText)}`, {
         method: "PATCH",
       });
@@ -232,7 +229,6 @@ export function AccountAdoptionDetailPage() {
         setRescheduleShift("");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescheduleDate]);
 
   useEffect(() => {
@@ -242,7 +238,6 @@ export function AccountAdoptionDetailPage() {
         setHandoverRescheduleShift("");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoverRescheduleDate]);
 
   const handleSubmitReschedule = async (e: React.FormEvent) => {
@@ -299,7 +294,6 @@ export function AccountAdoptionDetailPage() {
           </div>
         </div>
 
-        {/* --- BANNER 1: LỊCH HẸN PHỎNG VẤN GẶP MẶT --- */}
         {meetingInfo && (
           <div className="mb-4 p-5 bg-[#2c5f51]/10 border border-[#2c5f51]/30 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="space-y-2 text-sm text-[#3d6b5c] flex-1">
@@ -333,7 +327,6 @@ export function AccountAdoptionDetailPage() {
           </div>
         )}
 
-        {/* --- BANNER ĐỢI ADMIN TẠO LỊCH BÀN GIAO --- */}
         {!handoverInfo && (adoption.status === "APPROVED" || currentMeetingStatus === "COMPLETED") && (
           <div className="mb-4 p-5 bg-sky-50 border border-sky-200 rounded-2xl flex items-center gap-3 animate-fade-in">
             <Clock className="text-sky-500 shrink-0" size={24} />
@@ -344,7 +337,6 @@ export function AccountAdoptionDetailPage() {
           </div>
         )}
 
-        {/* --- BANNER 2: LỊCH BÀN GIAO ĐÓN VẬT NUÔI --- */}
         {handoverInfo && (
           <div className="mb-4 p-5 bg-sky-50 border border-sky-200 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 animate-fade-in">
             <div className="space-y-2 text-sm text-sky-800 flex-1">
@@ -357,16 +349,12 @@ export function AccountAdoptionDetailPage() {
               <p><strong>Location:</strong> {handoverInfo.pickupLocation || handoverInfo.pickup_location}</p>
             </div>
 
-            {/* 🌟 CHUẨN HÓA LOGIC RENDER: Tách nút Confirm và nút Đổi lịch biệt lập, cài chốt chặn bảo mật */}
             {currentHandoverStatus === "SCHEDULED" || (currentHandoverStatus === "CONFIRMED" && !handoverInfo.adopterConfirmed && !handoverInfo.adopter_confirmed) ? (
               <div className="flex flex-wrap gap-2 w-full lg:w-auto shrink-0">
-                
-                {/* Nút Confirm hiển thị khi Admin tạo lịch (SCHEDULED) hoặc khi Admin duyệt lịch đổi (CONFIRMED) */}
                 <button disabled={isSubmitting} onClick={handleConfirmHandover} className="flex-1 lg:flex-none px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-sm transition-all shadow-md white-space-nowrap">
                   {isSubmitting ? "Processing..." : "Confirm This Schedule"}
                 </button>
-                
-                {/* 🌟 CHỐT CHẶN: Chỉ hiển thị nút yêu cầu đổi lịch khi trạng thái là SCHEDULED (Chưa từng đổi) */}
+
                 {currentHandoverStatus === "SCHEDULED" && (
                   <button disabled={isSubmitting} onClick={() => setShowHandoverModal(true)} className="flex-1 lg:flex-none px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-semibold rounded-xl text-sm transition-all disabled:opacity-50 white-space-nowrap">
                     Reschedule Request
@@ -380,18 +368,16 @@ export function AccountAdoptionDetailPage() {
               </div>
             ) : currentHandoverStatus === "COMPLETED" ? (
               <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold shadow-sm">
-                ✅ Handover Process Finished
+                Handover Process Finished
               </div>
             ) : (
-              /* Trạng thái RESCHEDULED: Khách đã đổi lịch, đang chờ Admin duyệt */
               <div className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
-                ⏳ Awaiting Admin response for alternative handover schedule...
+                Awaiting Admin response for alternative handover schedule...
               </div>
             )}
           </div>
         )}
 
-        {/* --- BANNER ĐỢI ADMIN TẠO LỊCH THEO DÕI --- */}
         {!followupInfo && (adoption.status === "COMPLETED" || handoverInfo?.status?.toUpperCase() === "COMPLETED") && (
           <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-fade-in">
             <Clock className="text-amber-500 shrink-0" size={24} />
@@ -402,7 +388,6 @@ export function AccountAdoptionDetailPage() {
           </div>
         )}
 
-        {/* --- BANNER 3: LỊCH THEO DÕI ĐỊNH KỲ VÀ KHUNG GỬI BÁO CÁO CỦA KHÁCH --- */}
         {followupInfo && (
           <div className="mb-8 p-5 bg-amber-50/60 border border-amber-200 rounded-2xl space-y-4 animate-fade-in">
             <div className="text-sm text-amber-900 space-y-1">
@@ -444,7 +429,6 @@ export function AccountAdoptionDetailPage() {
         <StatusTimeline steps={adoptionProgressSteps.map((s) => ({ id: s.status, label: s.label, description: s.description }))} activeIndex={failed ? 0 : Math.max(activeIndex, 0)} failed={failed} failedLabel={adoption.status === "REJECTED" ? "This application was not approved." : "This application was cancelled."} />
       </div>
 
-      {/* --- MODAL CHỌN LỊCH MỚI PHÒNG VẤN (MEETING) --- */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl relative animate-scale-up">
@@ -480,7 +464,6 @@ export function AccountAdoptionDetailPage() {
         </div>
       )}
 
-      {/* --- MODAL CHỌN LỊCH MỚI BÀN GIAO (HANDOVER) --- */}
       {showHandoverModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl relative animate-scale-up">

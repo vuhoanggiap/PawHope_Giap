@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useProductDetail } from "@/hooks/useProductCatalog";
 import { addCartItem } from "@/lib/api/cart-api";
 import { formatVnd } from "@/lib/formatVnd";
-import { ArrowLeft, Check, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Check, ShoppingCart, CreditCard } from "lucide-react"; 
 
 export function ShopProductDetailPage() {
   const { id } = useParams();
@@ -20,6 +20,7 @@ export function ShopProductDetailPage() {
   const [qty, setQty] = useState(1);
   const [localStock, setLocalStock] = useState(0);
   const [added, setAdded] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false); 
   const [toast, setToast] = useState<{
     open: boolean;
     variant: "success" | "error";
@@ -38,7 +39,7 @@ export function ShopProductDetailPage() {
     setToast((current) => ({ ...current, open: false }));
   }, []);
 
-  const handleAdd = async () => {
+  const handleCartAction = async (actionType: "add" | "buy_now") => {
     if (!product) return;
 
     if (!user) {
@@ -49,18 +50,25 @@ export function ShopProductDetailPage() {
     if (localStock <= 0) return;
 
     try {
+      if (actionType === "buy_now") setIsBuyingNow(true);
+
       await addCartItem(user.userId, product.product_id, qty);
 
-      setLocalStock((prev) => Math.max(0, prev - qty));
       setQty(1);
+      refresh(); 
 
-      refresh();
-      setAdded(true);
-      setToast({ open: true, variant: "success" });
-      window.setTimeout(() => setAdded(false), 2000);
+      if (actionType === "buy_now") {
+        navigate("/cart"); 
+      } else {
+        setAdded(true);
+        setToast({ open: true, variant: "success" });
+        window.setTimeout(() => setAdded(false), 2000);
+      }
     } catch (e) {
       console.error(e);
       setToast({ open: true, variant: "error" });
+    } finally {
+      setIsBuyingNow(false);
     }
   };
 
@@ -76,9 +84,7 @@ export function ShopProductDetailPage() {
     return (
       <div className="public-container py-16 text-center sm:py-24">
         <h1 className="text-2xl font-bold text-[#2c5f51]">Product not found</h1>
-
         {error ? <p className="mt-2 text-sm soft-subtext">{error}</p> : null}
-
         <Button asChild className="mt-6 bg-[#f6931d]">
           <Link to="/shop">Back to shop</Link>
         </Button>
@@ -116,12 +122,10 @@ export function ShopProductDetailPage() {
               </p>
 
               <p className="leading-relaxed text-gray-600">{product.description}</p>
-
               <p className="text-sm text-gray-500">{localStock} in stock</p>
 
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium text-gray-700">Quantity</label>
-
                 <select
                   value={qty}
                   onChange={(e) => setQty(Number(e.target.value))}
@@ -136,27 +140,46 @@ export function ShopProductDetailPage() {
                 </select>
               </div>
 
-              <Button
-                onClick={handleAdd}
-                disabled={localStock <= 0}
-                className="h-12 w-full rounded-full bg-[#f6931d] px-8 font-bold hover:bg-orange-600 sm:w-auto"
-              >
-                {localStock <= 0 ? (
-                  <>Out of stock</>
-                ) : added ? (
-                  <>
-                    <Check size={18} className="mr-2" /> Added to cart
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart size={18} className="mr-2" /> Add to cart
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  onClick={() => handleCartAction("add")}
+                  disabled={localStock <= 0 || isBuyingNow}
+                  variant="outline"
+                  className="h-12 flex-1 rounded-full border-[#f6931d] text-[#f6931d] font-bold hover:bg-orange-50"
+                >
+                  {localStock <= 0 ? (
+                    <>Out of stock</>
+                  ) : added ? (
+                    <>
+                      <Check size={18} className="mr-2" /> Added to cart
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart size={18} className="mr-2" /> Add to cart
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => handleCartAction("buy_now")}
+                  disabled={localStock <= 0 || isBuyingNow}
+                  className="h-12 flex-1 rounded-full bg-[#f6931d] font-bold hover:bg-orange-600"
+                >
+                  {localStock <= 0 ? (
+                    <>Out of stock</>
+                  ) : isBuyingNow ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <CreditCard size={18} className="mr-2" /> Buy now
+                    </>
+                  )}
+                </Button>
+              </div>
 
               {!user ? (
                 <p className="text-xs text-gray-400">
-                  Sign in required to add items to your cart.
+                  Sign in required to buy or add items to your cart.
                 </p>
               ) : null}
             </div>

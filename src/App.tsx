@@ -53,6 +53,7 @@ import { AdminVolunteersPage } from "./pages/admin/AdminVolunteersPage";
 import { AdminNotificationsPage } from "./pages/admin/AdminNotificationsPage";
 import { AdminPetCreatePage } from "./pages/admin/AdminPetCreatePage";
 import { PaypalSuccessPage } from "./pages/PaypalSuccessPage";
+import { AdminContactMessagesPage } from "@/pages/admin/AdminContactMessagesPage";
 
 function App() {
   return (
@@ -114,12 +115,14 @@ function App() {
                 <Route path="orders" element={<AdminOrdersPage />} />
                 <Route path="orders/:id" element={<AdminOrderDetailPage />} />
                 <Route path="expenses" element={<AdminExpensesPage />} />
+                <Route path="contact-messages" element={<AdminContactMessagesPage />}/>
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="volunteers" element={<AdminVolunteersPage />} />
                 <Route path="volunteer-schedule" element={<AdminVolunteerSchedulePage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
                 <Route path="email-logs" element={<AdminEmailLogsPage />} />
                 <Route path="/admin/pets/create" element={<AdminPetCreatePage />} />
+                
               </Route>
             </Route>
           </Route>

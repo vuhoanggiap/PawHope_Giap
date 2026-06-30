@@ -1,77 +1,178 @@
 import { FormEvent, useEffect, useState } from "react";
-import { AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/admin/AdminDetailUi";
+import {
+  AdminFieldGrid,
+  AdminPanel,
+  AdminTabs,
+} from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+
 import {
-  getAdoptionGuidelines,
-  getOrganization,
-  loadAdoptionGuidelines,
-  loadOrganization,
-  saveGuideline,
-  saveOrganization,
-  type AdminGuideline,
-  type AdminOrganization,
-} from "@/lib/admin-store";
-import { USE_MOCK } from "@/lib/api-client";
+  getOrganizationApi,
+  saveOrganizationApi,
+  getGuidelinesApi,
+  createGuidelineApi,
+  updateGuidelineApi, deleteGuidelineApi,
+} from "@/lib/api/admin-settings";
+
 import { CheckCircle2, Plus } from "lucide-react";
 
-export function AdminSettingsPage() {
-  const [tab, setTab] = useState("organization");
-  const [org, setOrg] = useState<AdminOrganization>(() => getOrganization());
-  const [guidelines, setGuidelines] = useState<AdminGuideline[]>(() => getAdoptionGuidelines());
-  const [saved, setSaved] = useState(false);
+// ================= TYPES (MATCH BACKEND) =================
+type AdminOrganization = {
+  orgName: string;
+  tagline: string;
+  hotline: string;
+  email: string;
+  address: string;
+  missionStatement: string;
+  facebookLink: string;
+  logoUrl?: string;
+};
 
+type AdminGuideline = {
+  guideId: number;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  priority: number;
+};
+
+export function AdminSettingsPage() {
+  const [tab, setTab] = useState<"organization" | "guidelines">(
+    "organization"
+  );
+
+  const [org, setOrg] = useState<AdminOrganization | null>(null);
+  const [guidelines, setGuidelines] = useState<AdminGuideline[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const PAGE_SIZE = 5;
+
+  const [newGuideline, setNewGuideline] = useState({
+    title: "",
+    content: "",
+    imageUrl: "",
+    priority: guidelines.length + 1,
+  });
+  const [showNewGuideline, setShowNewGuideline] = useState(false);
+
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // ================= LOAD DATA =================
   useEffect(() => {
-    void loadOrganization().then(setOrg);
-    void loadAdoptionGuidelines().then(setGuidelines);
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const [orgRes, guideRes] = await Promise.all([
+          getOrganizationApi(),
+          getGuidelinesApi(),
+        ]);
+
+        setOrg(orgRes);
+        setGuidelines(guideRes);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, []);
 
+  // ================= UI FEEDBACK =================
   const flashSaved = () => {
     setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleOrgSubmit = (e: FormEvent) => {
+  // ================= SAVE ORGANIZATION =================
+  const handleOrgSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    saveOrganization(org);
+    if (!org) return;
+
+    await saveOrganizationApi(org);
     flashSaved();
   };
 
-  const handleGuidelineSave = (item: AdminGuideline) => {
-    saveGuideline(item);
-    setGuidelines(getAdoptionGuidelines());
+  // ================= UPDATE GUIDELINE =================
+  const handleGuidelineSave = async (item: AdminGuideline) => {
+    await updateGuidelineApi(item.guideId, {
+      title: item.title,
+      content: item.content,
+      imageUrl: item.imageUrl,
+      priority: item.priority,
+    });
+
+    const refreshed = await getGuidelinesApi();
+    setGuidelines(refreshed);
+
     flashSaved();
   };
 
-  const addGuideline = () => {
-    const nextId = Math.max(0, ...guidelines.map((g) => g.guide_id)) + 1;
-    const item: AdminGuideline = {
-      guide_id: nextId,
-      title: "New guideline",
-      content: "Describe the requirement for adopters.",
-      priority: guidelines.length + 1,
-    };
-    saveGuideline(item);
-    setGuidelines(getAdoptionGuidelines());
+  const handleGuidelineDelete = async (guideId: number) => {
+    if (!confirm("Delete this guideline?")) return;
+
+    await deleteGuidelineApi(guideId);
+
+    setGuidelines((prev) =>
+      prev.filter((g) => g.guideId !== guideId)
+    );
+
+    flashSaved();
   };
+
+  // ================= ADD GUIDELINE =================
+  const addGuideline = async () => {
+    const created = await createGuidelineApi(newGuideline);
+
+    setGuidelines((prev) => [...prev, created]);
+
+    setShowNewGuideline(false);
+
+    flashSaved();
+  };
+
+  // ================= LOADING STATE =================
+  if (loading || !org) {
+    return (
+      <div className="p-6 text-slate-400 text-sm">
+        Loading settings...
+      </div>
+    );
+  }
+
+  const sortedGuidelines = [...guidelines].sort(
+    (a, b) => b.guideId - a.guideId
+  );
+
+  const totalPages = Math.ceil(
+    sortedGuidelines.length / PAGE_SIZE
+  );
+
+  const currentGuidelines = sortedGuidelines.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div>
+      {/* HEADER */}
       <AdminPageHeader
         title="Site settings"
         description="Organization profile and adoption guidelines shown on the public site."
         badge="Admin"
       />
 
-      {saved ? (
+      {/* SAVED STATE */}
+      {saved && (
         <div className="admin-panel mb-6 flex items-center gap-2 p-4 text-sm text-emerald-300">
-          <CheckCircle2 size={18} />{" "}
-          {USE_MOCK
-            ? "Settings saved locally (mock mode)."
-            : "Saved locally — backend has no update API for organization/guidelines yet."}
+          <CheckCircle2 size={18} />
+          Saved successfully
         </div>
-      ) : null}
+      )}
 
+      {/* TABS */}
       <AdminTabs
         active={tab}
         onChange={setTab}
@@ -82,142 +183,336 @@ export function AdminSettingsPage() {
         className="mb-6"
       />
 
-      {tab === "organization" ? (
-        <form onSubmit={handleOrgSubmit} className="admin-panel space-y-5 p-6">
+      {/* ================= ORGANIZATION ================= */}
+      {tab === "organization" && (
+        <form
+          onSubmit={handleOrgSubmit}
+          className="admin-panel space-y-5 p-6"
+        >
           <AdminFieldGrid cols={2}>
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Organization name</label>
+              <label className="text-xs text-slate-400">Organization name</label>
               <input
-                required
-                value={org.name}
-                onChange={(e) => setOrg({ ...org, name: e.target.value })}
                 className={adminInputClass()}
+                value={org.orgName}
+                onChange={(e) =>
+                  setOrg({ ...org, orgName: e.target.value })
+                }
               />
             </div>
+
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Tagline</label>
+              <label className="text-xs text-slate-400">Hotline</label>
               <input
-                value={org.tagline}
-                onChange={(e) => setOrg({ ...org, tagline: e.target.value })}
                 className={adminInputClass()}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Hotline</label>
-              <input
-                required
                 value={org.hotline}
-                onChange={(e) => setOrg({ ...org, hotline: e.target.value })}
-                className={adminInputClass()}
+                onChange={(e) =>
+                  setOrg({ ...org, hotline: e.target.value })
+                }
               />
             </div>
+
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Email</label>
+              <label className="text-xs text-slate-400">Email</label>
               <input
-                required
-                type="email"
-                value={org.email}
-                onChange={(e) => setOrg({ ...org, email: e.target.value })}
                 className={adminInputClass()}
+                value={org.email}
+                onChange={(e) =>
+                  setOrg({ ...org, email: e.target.value })
+                }
               />
             </div>
           </AdminFieldGrid>
+
           <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wide text-slate-500">Address</label>
+            <label className="text-xs text-slate-400">Address</label>
             <textarea
-              required
+              className={adminInputClass("min-h-[80px]")}
               value={org.address}
-              onChange={(e) => setOrg({ ...org, address: e.target.value })}
-              className={adminInputClass("min-h-[80px] py-3")}
+              onChange={(e) =>
+                setOrg({ ...org, address: e.target.value })
+              }
             />
           </div>
+
           <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wide text-slate-500">Mission statement</label>
+            <label className="text-xs text-slate-400">Mission statement</label>
             <textarea
-              required
-              value={org.mission}
-              onChange={(e) => setOrg({ ...org, mission: e.target.value })}
-              className={adminInputClass("min-h-[100px] py-3")}
+              className={adminInputClass("min-h-[100px]")}
+              value={org.missionStatement}
+              onChange={(e) =>
+                setOrg({
+                  ...org,
+                  missionStatement: e.target.value,
+                })
+              }
             />
           </div>
+
           <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wide text-slate-500">Facebook link</label>
+            <label className="text-xs text-slate-400">Facebook link</label>
             <input
-              value={org.facebook}
-              onChange={(e) => setOrg({ ...org, facebook: e.target.value })}
               className={adminInputClass()}
+              value={org.facebookLink}
+              onChange={(e) =>
+                setOrg({
+                  ...org,
+                  facebookLink: e.target.value,
+                })
+              }
             />
           </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Logo URL</label>
+            <input
+              className={adminInputClass()}
+              value={org.logoUrl ?? ""}
+              onChange={(e) =>
+                setOrg({
+                  ...org,
+                  logoUrl: e.target.value,
+                })
+              }
+            />
+          </div>
+
           <button type="submit" className="admin-btn-primary">
             Save organization
           </button>
         </form>
-      ) : null}
+      )}
 
-      {tab === "guidelines" ? (
+      {/* ================= GUIDELINES ================= */}
+      {tab === "guidelines" && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <button type="button" onClick={addGuideline} className="admin-btn-secondary gap-2">
-              <Plus size={16} /> Add guideline
+            <button
+              type="button"
+              className="admin-btn-secondary gap-2"
+              onClick={() => {
+                setNewGuideline({
+                  title: "",
+                  content: "",
+                  imageUrl: "",
+                  priority: guidelines.length + 1,
+                });
+                setShowNewGuideline(true);
+              }}
+            >
+              <Plus size={16} />
+              Add guideline
             </button>
           </div>
-          {guidelines.map((g) => (
-            <AdminPanel key={g.guide_id} title={`Priority ${g.priority} · ${g.title}`}>
+
+          {showNewGuideline && (
+            <AdminPanel title="New Guideline">
               <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs uppercase tracking-wide text-slate-500">Title</label>
-                    <input
-                      value={g.title}
-                      onChange={(e) =>
-                        setGuidelines((prev) =>
-                          prev.map((x) => (x.guide_id === g.guide_id ? { ...x, title: e.target.value } : x))
-                        )
-                      }
-                      className={adminInputClass()}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs uppercase tracking-wide text-slate-500">Priority</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={g.priority}
-                      onChange={(e) =>
-                        setGuidelines((prev) =>
-                          prev.map((x) =>
-                            x.guide_id === g.guide_id ? { ...x, priority: Number(e.target.value) } : x
-                          )
-                        )
-                      }
-                      className={adminInputClass()}
-                    />
-                  </div>
-                </div>
                 <div className="space-y-1">
-                  <label className="text-xs uppercase tracking-wide text-slate-500">Content</label>
+                  <label className="text-xs text-slate-400">
+                    Title
+                  </label>
+                  <input
+                    className={adminInputClass()}
+                    value={newGuideline.title}
+                    onChange={(e) =>
+                      setNewGuideline({
+                        ...newGuideline,
+                        title: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Priority
+                  </label>
+                  <input
+                    type="number"
+                    className={adminInputClass()}
+                    value={newGuideline.priority}
+                    onChange={(e) =>
+                      setNewGuideline({
+                        ...newGuideline,
+                        priority: Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Content
+                  </label>
                   <textarea
+                    className={adminInputClass("min-h-[90px]")}
+                    value={newGuideline.content}
+                    onChange={(e) =>
+                      setNewGuideline({
+                        ...newGuideline,
+                        content: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className="admin-btn-primary"
+                    onClick={addGuideline}
+                  >
+                    Create
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-btn-secondary"
+                    onClick={() => setShowNewGuideline(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </AdminPanel>
+          )}
+
+          {currentGuidelines.map((g) => (
+            <AdminPanel
+              key={g.guideId}
+              title={`Priority ${g.priority} · ${g.title}`}
+            >
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Title
+                  </label>
+                  <input
+                    className={adminInputClass()}
+                    value={g.title}
+                    onChange={(e) =>
+                      setGuidelines((prev) =>
+                        prev.map((x) =>
+                          x.guideId === g.guideId
+                            ? { ...x, title: e.target.value }
+                            : x
+                        )
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Priority
+                  </label>
+                  <input
+                    type="number"
+                    className={adminInputClass()}
+                    value={g.priority}
+                    onChange={(e) =>
+                      setGuidelines((prev) =>
+                        prev.map((x) =>
+                          x.guideId === g.guideId
+                            ? {
+                                ...x,
+                                priority: Number(e.target.value),
+                              }
+                            : x
+                        )
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Content
+                  </label>
+                  <textarea
+                    className={adminInputClass("min-h-[120px]")}
                     value={g.content}
                     onChange={(e) =>
                       setGuidelines((prev) =>
-                        prev.map((x) => (x.guide_id === g.guide_id ? { ...x, content: e.target.value } : x))
+                        prev.map((x) =>
+                          x.guideId === g.guideId
+                            ? {
+                                ...x,
+                                content: e.target.value,
+                              }
+                            : x
+                        )
                       )
                     }
-                    className={adminInputClass("min-h-[90px] py-3")}
                   />
                 </div>
-                <button
-                  type="button"
-                  className="admin-btn-primary"
-                  onClick={() => handleGuidelineSave(guidelines.find((x) => x.guide_id === g.guide_id) ?? g)}
-                >
-                  Save guideline
-                </button>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">
+                    Image URL
+                  </label>
+                  <input
+                    className={adminInputClass()}
+                    value={g.imageUrl ?? ""}
+                    onChange={(e) =>
+                      setGuidelines((prev) =>
+                        prev.map((x) =>
+                          x.guideId === g.guideId
+                            ? {
+                                ...x,
+                                imageUrl: e.target.value,
+                              }
+                            : x
+                        )
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="admin-btn-secondary"
+                    onClick={() => handleGuidelineDelete(g.guideId)}
+                  >
+                    Delete
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-btn-primary"
+                    onClick={() => handleGuidelineSave(g)}
+                  >
+                    Save guideline
+                  </button>
+                </div>
               </div>
             </AdminPanel>
           ))}
+          <div className="mt-6 flex justify-center gap-2">
+            <button
+              className="admin-btn-secondary"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Previous
+            </button>
+
+            <span className="px-3 py-2 text-sm text-slate-300">
+              {currentPage} / {totalPages || 1}
+            </span>
+
+            <button
+              className="admin-btn-secondary"
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

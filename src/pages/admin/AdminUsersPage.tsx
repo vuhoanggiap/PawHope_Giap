@@ -4,7 +4,7 @@ import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/Admin
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { mockUsers } from "@/data/admin-mock";
-import { loadUsers, updateUserActive, updateUserRole } from "@/lib/admin/admin-data";
+import { fetchAllUsers, patchUserRole, patchUserStatus } from "@/lib/api/users-api";
 import { ApiError, USE_MOCK } from "@/lib/api-client";
 import { formatEnum } from "@/lib/adminFormat";
 
@@ -13,7 +13,7 @@ export function AdminUsersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(mockUsers[0]?.user_id ?? null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const refresh = () => void loadUsers().then(setUsers);
+  const refresh = () => void fetchAllUsers().then(setUsers);
 
   useEffect(() => {
     refresh();
@@ -23,30 +23,58 @@ export function AdminUsersPage() {
 
   const handleRole = (role: string) => {
     if (!selected) return;
-    setUsers((prev) =>
-      prev.map((u) => (u.user_id === selected.user_id ? { ...u, role } : u))
+
+    const ok = window.confirm(
+      `Are you sure you want to change role to "${role}"?`
     );
+
+    if (!ok) return;
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.user_id === selected.user_id ? { ...u, role } : u
+      )
+    );
+
     if (USE_MOCK) return;
-    void updateUserRole(selected.user_id, role)
+
+    void patchUserRole(selected.user_id, role)
       .then(() => {
         setMessage("Role updated.");
         refresh();
       })
-      .catch((e) => setMessage(e instanceof ApiError ? e.message : "Update failed"));
+      .catch((e) =>
+        setMessage(e instanceof ApiError ? e.message : "Update failed")
+      );
   };
 
   const handleStatus = (status: number) => {
     if (!selected) return;
-    setUsers((prev) =>
-      prev.map((u) => (u.user_id === selected.user_id ? { ...u, status } : u))
+
+    const action = status === 1 ? "UNLOCK (activate)" : "LOCK (disable)";
+
+    const ok = window.confirm(
+      `Are you sure you want to ${action} this account?`
     );
+
+    if (!ok) return;
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.user_id === selected.user_id ? { ...u, status } : u
+      )
+    );
+
     if (USE_MOCK) return;
-    void updateUserActive(selected.user_id, status === 1)
+
+    void patchUserStatus(selected.user_id, status === 1)
       .then(() => {
         setMessage("Status updated.");
         refresh();
       })
-      .catch((e) => setMessage(e instanceof ApiError ? e.message : "Update failed"));
+      .catch((e) =>
+        setMessage(e instanceof ApiError ? e.message : "Update failed")
+      );
   };
 
   return (
@@ -69,7 +97,7 @@ export function AdminUsersPage() {
             }))}
             columns={[
               { key: "id", label: "ID" },
-              { key: "username", label: "Username" },
+              { key: "username", label: "Email" },
               { key: "name", label: "Name" },
               { key: "role", label: "Role" },
             ]}
@@ -117,7 +145,7 @@ export function AdminUsersPage() {
                 </div>
               </AdminFieldGrid>
               <p className="text-xs text-slate-500 mt-4">
-                Role/status changes call the API when mock mode is off. Password reset is not available on the backend yet.
+                Changing the role or status will update the user immediately.
               </p>
             </AdminPanel>
           )}

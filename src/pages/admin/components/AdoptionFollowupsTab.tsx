@@ -11,7 +11,6 @@ interface AdoptionFollowupsTabProps {
   applicantEmail: string; 
   petName: string;        
   followups: any[];
-  // 🌟 NÂNG CẤP: Bổ sung mảng handovers (lịch bàn giao) để kiểm tra trạng thái chốt chặn
   currentHandovers: any[]; 
   onWorkflowReload: () => void;
   getStaffId: () => number;
@@ -22,7 +21,7 @@ export function AdoptionFollowupsTab({
   applicantEmail,
   petName,
   followups,
-  currentHandovers, // Lấy dữ liệu mảng Handover từ cha truyền xuống
+  currentHandovers, 
   onWorkflowReload,
   getStaffId,
 }: AdoptionFollowupsTabProps) {
@@ -37,7 +36,6 @@ export function AdoptionFollowupsTab({
   const [photoUrl, setPhotoUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // TỰ ĐỘNG NHẢY LỊCH KỲ TỚI (+6 THÁNG) KHÔNG CẦN NHẬP TAY
   useEffect(() => {
     if (followupDate) {
       const dateParts = followupDate.split("-");
@@ -66,7 +64,6 @@ export function AdoptionFollowupsTab({
 
     setIsSubmitting(true);
     try {
-      // 1. Lưu bản ghi theo dõi vào Database
       await apiFetch("/adoption_followups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,7 +81,6 @@ export function AdoptionFollowupsTab({
         })
       });
 
-      // 2. TỰ ĐỘNG BẮN EMAIL NHẮC NHỞ KHÁCH HÀNG ĐẾN KỲ BÁO CÁO CẬP NHẬT TÌNH HÌNH
       if (applicantEmail) {
         try {
           await apiFetch("/email/send", {
@@ -117,7 +113,6 @@ export function AdoptionFollowupsTab({
     }
   };
 
-  // 🌟 CHỐT CHẶN BẢO MẬT: Kiểm tra xem đã có bất kỳ lịch bàn giao (Handover) nào hoàn tất (COMPLETED) chưa?
   const isHandoverFinished = currentHandovers?.some(
     (h) => h.status?.toUpperCase() === "COMPLETED"
   );
@@ -126,8 +121,7 @@ export function AdoptionFollowupsTab({
     <div className="space-y-3">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-white">Follow-up History</h3>
-        
-        {/* HIỂN THỊ NÚT THEO TRẠNG THÁI HANDOVER */}
+
         {isHandoverFinished ? (
           <button
             onClick={() => setShowForm(!showForm)}
@@ -140,7 +134,7 @@ export function AdoptionFollowupsTab({
           </button>
         ) : (
           <span className="text-xs text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">
-            ⚠️ Handover process must be COMPLETED before scheduling follow-ups.
+            Handover process must be COMPLETED before scheduling follow-ups.
           </span>
         )}
       </div>

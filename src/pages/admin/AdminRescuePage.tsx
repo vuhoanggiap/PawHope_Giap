@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Đã thêm useNavigate
+import { Link, useNavigate } from "react-router-dom"; 
 import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { AdminFilterPill, AdminSearchInput, adminInputClass } from "@/components/admin/AdminControls";
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
@@ -7,17 +7,10 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockRescueReports } from "@/data/admin-mock";
 import { ApiError } from "@/lib/api-client";
-import {
-  getStaffName,
-  loadRescueAssignees,
-  loadRescueReports,
-  patchRescueReport,
-  removeRescueReport,
-  type AdminRescueRow,
-} from "@/lib/admin/admin-data";
+import { getStaffName, loadRescueAssignees, loadRescueReports, patchRescueReport, removeRescueReport, type AdminRescueRow } from "@/lib/admin/admin-data";
 import { staffIsAdmin, getStaffUser } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
-import { ExternalLink, Trash2, PawPrint } from "lucide-react"; // Đã thêm icon PawPrint
+import { ExternalLink, Trash2, PawPrint } from "lucide-react"; 
 
 const STATUS_OPTIONS = ["PENDING", "IN_PROGRESS", "RESCUED", "FAILED"] as const;
 type ScopeFilter = "ALL" | "MINE";
@@ -25,7 +18,7 @@ type ScopeFilter = "ALL" | "MINE";
 export function AdminRescuePage() {
   const staff = getStaffUser();
   const isAdminUser = staffIsAdmin();
-  const navigate = useNavigate(); // Khởi tạo hook chuyển trang
+  const navigate = useNavigate(); 
   
   const [reports, setReports] = useState<AdminRescueRow[]>(mockRescueReports as AdminRescueRow[]);
   const [assignees, setAssignees] = useState<{ user_id: number; full_name: string; role: string }[]>([]);
@@ -103,24 +96,20 @@ export function AdminRescuePage() {
     });
   };
 
-  // --- HÀM CHUYỂN TRANG VÀ ĐẨY DỮ LIỆU SANG FORM TẠO PET ---
   const handleCreatePet = () => {
     if (!selected) return;
     navigate("/admin/pets/create", {
       state: {
         fromReportId: selected.report_id,
         imageUrl: selected.image_url,
-        description: `Ghi chú cứu hộ: ${selected.additional_note || "Không có"}\nĐặc điểm: ${formatEnum(selected.temperament)} - ${formatEnum(selected.behavior)}\nĐịa điểm tìm thấy: ${selected.location_text}`
+        description: `Rescue notes: ${selected.additional_note || "Do not have"}\nTemperament: ${formatEnum(selected.temperament)} - ${formatEnum(selected.behavior)}\nLocation found: ${selected.location_text}`
       }
     });
   };
 
   return (
     <div>
-      <AdminPageHeader
-        title="Rescue reports"
-        description="Full case details, assignment, and status workflow."
-      />
+      <AdminPageHeader title="Rescue reports" description="Full case details, assignment, and status workflow."/>
 
       {actionError ? (
         <div className="admin-panel mb-4 border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
@@ -295,26 +284,22 @@ export function AdminRescuePage() {
                       ))}
                     </select>
                   </div>
-                </AdminFieldGrid>
-                
-                {/* --- KHU VỰC HIỂN THỊ NÚT TẠO THÚ CƯNG KHI TRẠNG THÁI LÀ RESCUED --- */}
+                </AdminFieldGrid>                
                 {selected.status === "RESCUED" ? (
                   <div className="mt-6 pt-4 border-t border-emerald-500/20 flex flex-col items-start gap-3">
                     <p className="text-sm text-emerald-400 font-medium flex items-center gap-2">
                       <ExternalLink size={16} />
-                      Cứu hộ thành công! Bước tiếp theo: Tạo hồ sơ thú cưng.
+                      Rescue successful! Next step: Create pet profile.
                     </p>
                     <button
                       onClick={handleCreatePet}
                       className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
                     >
                       <PawPrint size={16} />
-                      Tạo Hồ Sơ Thú Cưng cho ca này
+                      Create Pet Profile
                     </button>
                   </div>
                 ) : null}
-                {/* ------------------------------------------------------------------- */}
-
               </AdminPanel>
             </>
           )}

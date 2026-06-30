@@ -16,24 +16,22 @@ export function AccountAdoptionsPage() {
 
   if (!user) return null;
 
-  // --- DEFINE STATUS SORTING PRIORITY ---
   const getStatusPriority = (status: string) => {
     switch (status) {
       case "PENDING":
       case "SUBMITTED":
-        return 1; // 1. Active/Pending applications stay at the top
+        return 1; 
       case "APPROVED":
       case "COMPLETED":
-        return 2; // 2. Approved or completed applications in the middle
+        return 2; 
       case "REJECTED":
       case "CANCELLED":
-        return 3; // 3. Rejected or cancelled applications at the bottom
+        return 3; 
       default:
         return 1;
     }
   };
 
-  // --- PROCESS AND SORT ADOPTIONS DATA ---
   const sortedAdoptions = [...adoptions].sort((a, b) => {
     const priorityA = getStatusPriority(a.status);
     const priorityB = getStatusPriority(b.status);
@@ -41,7 +39,6 @@ export function AccountAdoptionsPage() {
     if (priorityA !== priorityB) {
       return priorityA - priorityB;
     }
-    // If statuses fall into the same group, sort by newest apply_date first
     return new Date(b.apply_date).getTime() - new Date(a.apply_date).getTime();
   });
 

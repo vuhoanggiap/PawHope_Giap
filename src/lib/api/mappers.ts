@@ -1,15 +1,6 @@
 import type { MockPet } from "@/data/mock";
-import type {
-  DonationCampaign,
-  PublicAdoption,
-  PublicItemDonation,
-  PublicMoneyDonation,
-  PublicNotification,
-  PublicOrder,
-  PublicOrderItem,
-  PublicRescueReport,
-  RescueStatus,
-} from "@/data/public-mock";
+import type { DonationCampaign, PublicAdoption, PublicItemDonation, PublicMoneyDonation,
+  PublicNotification, PublicOrder, PublicOrderItem, PublicRescueReport, RescueStatus } from "@/data/public-mock";
 import { formatApiDate, formatApiDateTime, toNumber } from "@/lib/api/format";
 import type { ProductResDto } from "@/lib/api/product-mapper";
 import { mapProductRes } from "@/lib/api/product-mapper";
@@ -130,6 +121,8 @@ export type CartResDto = {
   productName: string;
   price: number;
   quantity: number;
+  imageUrl?: string;      
+  stockQuantity?: number;
 };
 
 export type OrderItemResDto = {
@@ -170,16 +163,19 @@ export type NotificationResDto = {
 export type UserResDto = {
   userId: number;
   username: string;
-  full_name: string;
+  fullName: string;
   email: string;
-  phone?: string;
-  status?: boolean;
+  phone: string;
+  status: boolean;
+  role: string;
+  createdAt: string;
 };
 
 export type AdoptionGuidelineResDto = {
   guideId: number;
   title: string;
   content: string;
+  imageUrl?: string;
   priority?: number;
 };
 
@@ -306,6 +302,9 @@ export function mapItemDonationRes(dto: ItemDonationResDto): PublicItemDonation 
     category: dto.category ?? "OTHER",
     quantity: dto.quantity ?? "1",
     status: dto.status ?? "PENDING",
+    received_by: dto.receivedBy,
+    note: dto.note,
+    received_at: formatApiDateTime(dto.receivedAt),
     created_at: formatApiDateTime(dto.receivedAt),
   };
 }
@@ -350,12 +349,14 @@ export function mapNotificationRes(dto: NotificationResDto): PublicNotification 
 
 export function mapUserRes(dto: UserResDto) {
   return {
-    userId: dto.userId,
+    user_id: dto.userId,
     username: dto.username,
-    fullName: dto.full_name,
+    full_name: dto.fullName,
     email: dto.email,
     phone: dto.phone,
-    role: "USER" as const,
+    role: dto.role,
+    status: dto.status ? 1 : 0,
+    created_at: formatApiDateTime(dto.createdAt),
   };
 }
 

@@ -1,6 +1,5 @@
 import type { PublicProduct } from "@/data/public-mock";
 
-/** Shape returned by Spring Boot ProductRes (Jackson camelCase). */
 export type ProductResDto = {
   productId: number;
   productName: string;

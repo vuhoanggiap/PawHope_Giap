@@ -5,15 +5,15 @@ export interface AdoptionHandover {
   handoverId: number;
   adoptionId: number;
   staffId: number;
-  handoverMethod: string; // PICKUP, DELIVERY
+  handoverMethod: string; 
   pickupDatetime: string;
   pickupLocation: string;
-  status: string; // SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED
+  status: string; 
   adopterConfirmed: boolean;
   itemsGiven: string;
   note: string;
   createdAt: string;
-  staffName?: string; // Dữ liệu bổ sung nếu Backend trả về
+  staffName?: string; 
 }
 
 export function useAdoptionHandovers() {
@@ -28,13 +28,12 @@ export function useAdoptionHandovers() {
       const data = await apiFetch<AdoptionHandover[]>("/adoption_handovers");
       setHandovers(data);
     } catch (e: any) {
-      setError(e instanceof ApiError ? e.message : "Không thể tải danh sách bàn giao");
+      setError(e instanceof ApiError ? e.message : "Unable to load the handover list.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // API Đánh dấu hoàn tất bàn giao
   const completeHandover = async (id: number, completionNote: string = "") => {
     try {
       const safeNote = encodeURIComponent(completionNote);
@@ -44,7 +43,7 @@ export function useAdoptionHandovers() {
       await fetchHandovers();
       return true;
     } catch (e) {
-      console.error("Lỗi hoàn tất bàn giao:", e);
+      console.error("Error completing handover:", e);
       return false;
     }
   };

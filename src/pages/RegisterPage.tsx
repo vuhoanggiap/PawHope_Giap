@@ -17,12 +17,10 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(""); // Clear previous errors on each new submission
+    setError(""); 
 
     try {
       const fd = new FormData(e.currentTarget);
-
-      // Call registration API with trimmed input data
       const ok = await register({
         username: String(fd.get("username") || "").trim(),
         password: String(fd.get("password") || ""),
@@ -31,18 +29,14 @@ export function RegisterPage() {
         phone: String(fd.get("phone") || "").trim() || undefined,
       });
 
-      // If API returns false without throwing an error
       if (!ok) {
         setError("Registration failed. The email or username may already exist.");
         return;
       }
-
-      // SUCCESS: Show notification and redirect user to login page
-      alert("🎉 Account created successfully! Please sign in.");
+      alert("Account created successfully! Please sign in.");
       navigate("/login");
 
     } catch (err: any) {
-      // HANDLE HIDDEN ERRORS: Display clear error messages
       console.error("Registration error:", err);
       setError(err.message || "An error occurred during registration!");
     }
@@ -95,7 +89,7 @@ export function RegisterPage() {
 
               <div>
                 <label className="text-sm font-medium">Phone (optional)</label>
-                <Input name="phone" placeholder="+84 ..." className="mt-1" />
+                <Input name="phone" placeholder="Enter your phone number" className="mt-1" />
               </div>
 
               <div>

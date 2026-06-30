@@ -37,3 +37,20 @@ export async function capturePaypalOrder(
 
   return res.data ?? res;
 }
+
+export async function capturePaypalDonation(
+  paypalOrderId: string,
+  input: {
+    campaignId: number;
+    userId: number | null;
+    donorNameManual: string;
+    amount: number; 
+  }
+) {
+  const res = await apiFetch<any>(`/paypal/capture-donation/${paypalOrderId}`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  return res.data ?? res;
+}

@@ -5,13 +5,8 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockScheduleWindows, mockVolunteerSchedules } from "@/data/admin-mock";
 import { fetchShifts,  createShift,  updateShift,  deleteShift,  type ShiftResDto } from "@/lib/api/shifts-api"; 
-import { 
-  fetchScheduleWindows, 
-  fetchVolunteerSchedules,
-  createVolunteerScheduleWindow, 
-  updateVolunteerScheduleWindow,
-  approveVolunteerWeek,
-  rejectVolunteerWeek
+import {  fetchScheduleWindows,  fetchVolunteerSchedules, createVolunteerScheduleWindow,  updateVolunteerScheduleWindow,
+  approveVolunteerWeek, rejectVolunteerWeek
 } from "@/lib/api/volunteer-schedule-api"; 
 
 export function AdminVolunteerSchedulePage() {
@@ -20,7 +15,6 @@ export function AdminVolunteerSchedulePage() {
   const [shifts, setShifts] = useState<ShiftResDto[]>([]); 
   const [schedules, setSchedules] = useState<any[]>([]);
   const [windowId, setWindowId] = useState<number>(1);
-
   const [editingShiftId, setEditingShiftId] = useState<number | null>(null);
   const [shiftForm, setShiftForm] = useState({
     shiftName: "",
@@ -238,12 +232,11 @@ export function AdminVolunteerSchedulePage() {
 
       {tab === "registrations" ? (
         <>
-          <div className="mb-4 flex flex-wrap items-end gap-4">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-800 pb-4">
             <div className="space-y-1">
-              <label className="text-xs uppercase tracking-wide text-slate-500">
+              <label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">
                 Registration window
               </label>
-
               <select
                 value={windowId}
                 onChange={(e) => setWindowId(Number(e.target.value))}
@@ -265,13 +258,79 @@ export function AdminVolunteerSchedulePage() {
             ) : null}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          {(() => {
+            const uniqueSubmissions = Array.from(
+              new Map(
+                filtered
+                  .filter((s) => s.weekStatus === "SUBMITTED" && s.weekId)
+                  .map((item) => [item.weekId, item])
+              ).values()
+            );
+
+            if (uniqueSubmissions.length === 0) return null;
+
+            return (
+              <AdminPanel title="This week's application is on the pending list for approval.">
+                <div className="divide-y divide-slate-800">
+                  {uniqueSubmissions.map((v: any) => (
+                    <div key={v.weekId} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                      <div>
+                        <span className="font-semibold text-slate-200 text-sm">{v.volunteerName}</span>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Selected: {filtered.filter((s) => s.weekId === v.weekId).length} shifts this week
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (window.confirm(`Confirm APPROVAL of the entire weekly schedule for ${v.volunteerName}?`)) {
+                              try {
+                                await approveVolunteerWeek(v.weekId);
+                                alert("Successfully approved!");
+                                loadData();
+                              } catch (err) {
+                                alert("Failed to approve schedule.");
+                              }
+                            }
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+                        >
+                          Approve Week
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const reason = window.prompt("Enter the reason for rejecting this week's schedule:");
+                            if (reason !== null) {
+                              try {
+                                await rejectVolunteerWeek(v.weekId, reason);
+                                alert("Successfully rejected the schedule.");
+                                loadData();
+                              } catch (err) {
+                                alert("Failed to reject the schedule.");
+                              }
+                            }
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+                        >
+                          Reject Week
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AdminPanel>
+            );
+          })()}
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 mt-6">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-900/70 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Date</th>
-                  {shifts.map((shift) => (
-                    <th key={shift.shiftId} className="px-4 py-3">
+                  {shifts.filter((s) => s.shiftId !== 4).map((shift) => (
+                    <th key={shift.shiftId} className="px-4 py-3 font-medium text-slate-400">
                       {shift.shiftName}
                     </th>
                   ))}
@@ -280,96 +339,33 @@ export function AdminVolunteerSchedulePage() {
 
               <tbody className="divide-y divide-slate-800">
                 {weekDates.map((date) => (
-                  <tr key={date}>
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-200">
+                  <tr key={date} className="hover:bg-slate-900/20">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-300">
                       {date}
                     </td>
 
-                    {shifts.map((shift) => {
-                      const isAdminShift = shift.shiftId === 4;
+                    {shifts.filter((s) => s.shiftId !== 4).map((shift) => {
                       const volunteers = filtered.filter(
                         (s) => s.workDate === date && s.shiftName === shift.shiftName
                       );
                       return (
                         <td key={shift.shiftId} className="min-w-[180px] px-4 py-4 align-top">
-                          {isAdminShift ? (
-                            <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-2">
-                              <div className="font-medium text-slate-200">Admin</div>
-                              <div className="mt-1">
-                                <StatusBadge value="ASSIGNED" />
-                              </div>
-                            </div>
-                          ) : volunteers.length > 0 ? (
+                          {volunteers.length > 0 ? (
                             <div className="space-y-2">
                               {volunteers.map((v) => {
-
                                 const currentStatus = v.weekStatus || "SUBMITTED";
-                                
                                 return (
-                                  <div key={v.scheduleId} className="rounded-lg border border-slate-700 bg-slate-900/60 p-2">
-                                    <div className="font-medium text-slate-200">{v.volunteerName}</div>
-                                    <div className="mt-1 flex flex-col gap-1.5">
+                                  <div key={v.scheduleId} className="rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 shadow-sm">
+                                    <div className="font-semibold text-slate-200 text-xs">{v.volunteerName}</div>
+                                    <div className="mt-1.5">
                                       <StatusBadge value={currentStatus} />
-
-                                      {currentStatus === "SUBMITTED" && (
-                                        <div className="mt-2 flex gap-1">
-                                          <button 
-                                            type="button"
-                                            onClick={async () => {
-                                              if (window.confirm(`Are you sure you want to APPROVE the weekly schedule for ${v.volunteerName}?`)) {
-                                                try {
-                                                  await approveVolunteerWeek(v.weekId);
-                                                  alert("Approved successfully!");
-                                                  setSchedules((prev) =>
-                                                    prev.map((item) =>
-                                                      item.weekId === v.weekId ? { ...item, weekStatus: "APPROVED" } : item
-                                                    )
-                                                  );
-                                                  
-                                                  loadData();
-                                                } catch (err) {
-                                                  alert("Failed to approve schedule week.");
-                                                }
-                                              }
-                                            }}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer"
-                                          >
-                                            Approve
-                                          </button>
-                                          
-                                          <button 
-                                            type="button"
-                                            onClick={async () => {
-                                              const reason = window.prompt("Enter rejection reason:");
-                                              if (reason !== null) {
-                                                try {
-                                                  await rejectVolunteerWeek(v.weekId, reason);
-                                                  alert("Rejected successfully.");
-                                                  setSchedules((prev) =>
-                                                    prev.map((item) =>
-                                                      item.weekId === v.weekId ? { ...item, weekStatus: "REJECTED" } : item
-                                                    )
-                                                  );
-                                                  
-                                                  loadData(); 
-                                                } catch (err) {
-                                                  alert("Failed to reject schedule week.");
-                                                }
-                                              }
-                                            }}
-                                            className="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer"
-                                          >
-                                            Reject
-                                          </button>
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 );
                               })}
                             </div>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-slate-700">—</span>
                           )}
                         </td>
                       );

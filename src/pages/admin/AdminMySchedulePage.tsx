@@ -19,16 +19,13 @@ import {
 export function AdminMySchedulePage() {
   const staff = getStoredAdmin();
   const userId = staff?.userId ?? 0;
-
   const [windows, setWindows] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
   const [weeks, setWeeks] = useState<any[]>([]);
   const [registered, setRegistered] = useState<any[]>([]);
   const [allSchedules, setAllSchedules] = useState<any[]>([]); 
-  
   const [windowId, setWindowId] = useState<number | null>(null);
   const [viewWeekId, setViewWeekId] = useState<number | null>(null);
-  
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -124,7 +121,7 @@ export function AdminMySchedulePage() {
     [registered, weekForWindow?.weekId]
   );
   
-  const canEditWeek = weekForWindow?.status === "DRAFT";
+  const canEditWeek = weekForWindow?.status === "DRAFT" || weekForWindow?.status === "REJECTED";
   const isWindowOpen = selectedWindow?.status === "OPEN";
 
   const viewWeekShifts = useMemo(
@@ -249,8 +246,7 @@ export function AdminMySchedulePage() {
   const handleSubmitWeek = () => {
     if (!weekForWindow || !isWindowOpen) return;
     const isConfirmed = window.confirm(
-      `Are you sure you want to submit your schedule for this week? Once submitted, 
-      you will NOT be able to modify your selected shifts.`
+      `Are you sure you want to submit your schedule for this week? Once submitted, \nyou will NOT be able to modify your selected shifts.`
     );
     if (isConfirmed) {
       void run(async () => {
@@ -268,7 +264,7 @@ export function AdminMySchedulePage() {
       <AdminPageHeader
         title="My Schedule"
         description="Register for open windows, log flexible availability shifts, and monitor your active planner slots."
-        badge={USE_MOCK ? "Mock" : "Live API"}
+        badge={USE_MOCK ? "Mock" : "Volunteer"}
       />
 
       {error && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
@@ -286,12 +282,13 @@ export function AdminMySchedulePage() {
               {windows.length === 0 ? (
                 <option value="">No open windows found</option>
               ) : (
-                windows.map((w) => (
-                  <option key={w.windowId} value={w.windowId}>
-                    Week: {w.weekStartDate} ({w.status})
-                  </option>
-                ))
+                <option value="">-- Choose a week --</option>
               )}
+              {windows.map((w) => (
+                <option key={w.windowId} value={w.windowId}>
+                  Week: {w.weekStartDate} ({w.status})
+                </option>
+              ))}
             </select>
             {selectedWindow && (
               <p className="text-xs text-slate-500 mt-1 italic">
@@ -330,13 +327,33 @@ export function AdminMySchedulePage() {
                 <div className="mt-5 space-y-4">
                   {canEditWeek ? (
                     <div className="rounded-xl border border-white/[0.06] p-3 bg-slate-900/40">
-                      <p className="text-xs text-slate-400 mb-3">Check shifts to log availability or uncheck to clear (Minimum ≥ 5 shifts required):</p>
+                      {weekForWindow?.status === "REJECTED" && (
+                        <div className="mb-4 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-xs text-red-400">
+                          <strong className="block mb-1 text-sm font-semibold">Your schedule has been rejected:</strong>
+                          <p className="italic">{"Reasons for rejection: " + (weekForWindow.rejectionReason || "No specific reason.")}</p>
+                          <span className="block mt-2 text-[10px] text-slate-500">
+                            Please review the rejection reason and adjust your selected shifts accordingly before resubmitting.
+                            </span>
+                        </div>
+                      )}
+                      <p className="text-xs text-slate-400 mb-3">Check shifts to log availability or uncheck to clear:</p>
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-xs">
                           <thead>
                             <tr className="text-slate-500 border-b border-white/[0.05]">
                               <th className="py-2 text-left">Date</th>
-                              {shifts.map(s => <th key={s.shiftId} className="py-2 px-1 text-center font-normal">{s.shiftName}</th>)}
+                              {shifts.filter(s => s.shiftId !== 4).map(s => (
+                                <th key={s.shiftId} className="py-2 px-1 text-center font-normal">
+                                  <div className="flex flex-col items-center">
+                                    <span className="font-semibold text-slate-300">{s.shiftName}</span>
+                                    {s.startTime && s.endTime && (
+                                      <span className="text-[10px] text-slate-500 font-normal">
+                                        ({s.startTime.slice(0, 5)} - {s.endTime.slice(0, 5)})
+                                      </span>
+                                    )}
+                                  </div>
+                                </th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/[0.04]">
@@ -385,9 +402,9 @@ export function AdminMySchedulePage() {
                       <div className="mt-4 flex justify-end">
                         <button
                           type="button"
-                          disabled={busy || weekShifts.length < 5}
+                          disabled={busy || weekShifts.length === 0}
                           onClick={handleSubmitWeek}
-                          className="admin-btn-primary text-xs px-4 py-2 disabled:opacity-50"
+                          className="admin-btn-primary text-xs px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Submit Weekly Schedule for Approval
                         </button>
@@ -431,11 +448,16 @@ export function AdminMySchedulePage() {
           </div>
         </div>
 
-        {!selectedViewWeek || viewWeekShifts.length === 0 || selectedViewWeek.status === "DRAFT" ? (
+        {!selectedViewWeek || viewWeekShifts.length === 0 || selectedViewWeek.status !== "APPROVED" ? (
           <p className="text-sm text-slate-500 py-6 text-center italic">
-            {selectedViewWeek?.status === "DRAFT" 
-              ? "Your schedule roster for this week is still in Draft status. Please press 'Submit Weekly Schedule for Approval' above to officially submit."
-              : "No logged shift records matched this account or the selected period hasn't been submitted/approved."}
+            {selectedViewWeek?.status === "DRAFT" && 
+              "Your schedule roster for this week is still in Draft status. Please press 'Submit Weekly Schedule for Approval' above to officially submit."}
+            {selectedViewWeek?.status === "SUBMITTED" && 
+              "Your schedule has been submitted and is currently pending administrator review. Please check back later."}
+            {selectedViewWeek?.status === "REJECTED" && 
+              "Your schedule roster was rejected. Please review the feedback, adjust your shifts above, and re-submit."}
+            {(!selectedViewWeek || (selectedViewWeek.status === "APPROVED" && viewWeekShifts.length === 0)) &&
+              "No logged shift records matched this account for the selected approved period."}
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
@@ -454,16 +476,38 @@ export function AdminMySchedulePage() {
                 {viewWeekDates.map((date) => (
                   <tr key={date} className="hover:bg-white/[0.01]">
                     <td className="px-4 py-4 font-semibold text-slate-300 whitespace-nowrap">{date}</td>
-                    {shifts.map((s) => {
+                    {shifts.filter((s) => s.shiftId !== 4).map((s) => {
                       const hasMatch = viewWeekShifts.some(ws => ws.workDate === date && ws.shiftId === s.shiftId);
                       return (
                         <td key={s.shiftId} className="px-4 py-4">
                           {hasMatch ? (
-                            <span className="text-xs text-emerald-400 font-medium bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded inline-flex items-center gap-1">
-                              <CheckCircle2 size={12} /> Shift Confirmed
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-teal-500/5 px-2.5 py-1 text-xs font-semibold text-emerald-400 shadow-sm shadow-emerald-900/20 backdrop-blur-sm transition-all hover:border-emerald-500/50">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                                <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                                <span>Confirmed</span>
+                              </div>
+                              {s.startTime && s.endTime && (
+                                <span className="text-[11px] text-slate-400 font-medium pl-1.5">
+                                  {s.startTime.slice(0, 5)} - {s.endTime.slice(0, 5)}
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <span className="text-slate-600">—</span>
+                            <div className="flex flex-col items-start gap-1 select-none">
+                              <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.02] bg-white/[0.01] px-2.5 py-1 text-xs text-slate-600">
+                                <span className="h-1 w-1 rounded-full bg-slate-700/60"></span>
+                                <span>Off</span>
+                              </div>
+                              {s.startTime && s.endTime && (
+                                <span className="text-[10px] text-slate-600 font-normal pl-1.5 italic">
+                                  {s.startTime.slice(0, 5)} - {s.endTime.slice(0, 5)}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                       );

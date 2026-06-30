@@ -37,3 +37,9 @@ export async function patchUserRole(userId: number, role: string) {
 export async function patchUserStatus(userId: number, active: boolean) {
   return apiFetch<UserResDto>(`/users/${userId}/status?status=${active}`, { method: "PATCH" });
 }
+
+export async function deleteUser(userId: number) {
+  return apiFetch(`/users/${userId}`, {
+    method: "DELETE",
+  });
+}

@@ -291,7 +291,7 @@ export async function markNotificationRead(notiId: number) {
       await apiMarkRead(notiId);
       return;
     } catch {
-      /* fallback mock */
+   
     }
   }
   const ids = getReadNotiIds();
@@ -310,7 +310,7 @@ export async function markAllNotificationsRead(userId: number) {
       apiNotificationsCache.delete(userId);
       return;
     } catch {
-      /* fallback */
+     
     }
   }
   const all = allNotifications().filter((n) => n.user_id === userId);

@@ -4,10 +4,10 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockKennels } from "@/data/admin-mock";
 import { loadKennels } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
-import { ChevronRight, Trash2 } from "lucide-react"; // Bổ sung icon Trash2
+import { ChevronRight, Trash2 } from "lucide-react"; 
 import { useEffect, useState } from "react";
 import { useAllPets } from "@/hooks/usePets";
-import { apiFetch } from "@/lib/api-client"; // Bổ sung apiFetch để gọi lệnh Xóa
+import { apiFetch } from "@/lib/api-client"; 
 
 export function AdminPetsPage() {
   const { pets, loading, error } = useAllPets();
@@ -17,29 +17,28 @@ export function AdminPetsPage() {
     void loadKennels().then(setKennels);
   }, []);
 
-  // --- HÀM XỬ LÝ XÓA THÚ CƯNG ---
   const handleDelete = async (e: React.MouseEvent, petId: number) => {
-    e.preventDefault(); // Ngăn không cho thẻ Link chuyển trang
-    e.stopPropagation(); // Ngăn chặn nổi bọt sự kiện
+    e.preventDefault(); 
+    e.stopPropagation(); 
 
-    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa hồ sơ thú cưng này không? Hành động này không thể hoàn tác.");
+    const confirmDelete = window.confirm("Are you sure you want to delete this pet profile? This action cannot be undone..");
     if (!confirmDelete) return;
 
     try {
       await apiFetch(`/pets/${petId}`, { method: "DELETE" });
-      alert("Đã xóa thú cưng thành công!");
-      window.location.reload(); // Tải lại trang để cập nhật danh sách
+      alert("Pet deleted successfully!");
+      window.location.reload(); 
     } catch (err: any) {
-      alert(err.message || "Lỗi khi xóa thú cưng.");
+      alert(err.message || "Error occurred while deleting the pet.");
     }
   };
 
   if (loading) {
-    return <div className="p-8 text-slate-400">Đang tải dữ liệu thú cưng từ hệ thống...</div>;
+    return <div className="p-8 text-slate-400">Loading pet data from the system...</div>;
   }
 
   if (error) {
-    return <div className="p-8 text-red-500 bg-red-500/10 rounded-lg">Lỗi tải dữ liệu: {error}</div>;
+    return <div className="p-8 text-red-500 bg-red-500/10 rounded-lg">Error loading data: {error}</div>;
   }
 
   return (
@@ -61,10 +60,7 @@ export function AdminPetsPage() {
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {pets.map((pet: any) => {
           const kennel = kennels.find((k) => k.kennel_id === pet.kennelId);
-          
-          // ĐIỀU KIỆN ĐƯỢC PHÉP XÓA: Không có fromReportId VÀ trạng thái là NOT_READY_FOR_ADOPTION
           const canDelete = !pet.fromReportId && pet.status === "NOT_READY_FOR_ADOPTION";
-          
           return (
             <Link
               key={pet.id || pet.petId}
@@ -81,14 +77,13 @@ export function AdminPetsPage() {
                     </p>
                     <p className="text-xs text-slate-500">{pet.petCode}</p>
                   </div>
-                  
-                  {/* Khu vực chứa nút Xóa và Badge Trạng thái */}
+
                   <div className="flex items-center gap-2">
                     {canDelete && (
                       <button
                         onClick={(e) => handleDelete(e, pet.id || pet.petId)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/20 rounded transition-colors"
-                        title="Xóa hồ sơ tạo thủ công"
+                        title="Delete manually created profile"
                       >
                         <Trash2 size={16} />
                       </button>

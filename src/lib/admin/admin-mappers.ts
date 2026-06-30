@@ -9,17 +9,14 @@ import type { VolunteerApplicationResDto } from "@/lib/api/volunteer-application
 import type { AdoptionMeetingResDto } from "@/lib/api/adoption-meetings-api";
 import type { AdoptionHandoverResDto } from "@/lib/api/adoption-handovers-api";
 import type { AdoptionFollowupResDto } from "@/lib/api/adoption-followups-api";
-import type {
-  ShiftResDto,
-  VolunteerScheduleResDto,
-  VolunteerScheduleWindowResDto,
-} from "@/lib/api/volunteer-schedule-api";
+import type { ShiftResDto, VolunteerScheduleResDto, VolunteerScheduleWindowResDto } from "@/lib/api/volunteer-schedule-api";
 import type { AdoptionResDto } from "@/lib/api/mappers";
 import type { OrderResDto } from "@/lib/api/mappers";
 import type { DonationResDto, DonationCampaignResDto } from "@/lib/api/mappers";
 import type { ItemDonationResDto } from "@/lib/api/mappers";
 import type { NotificationResDto } from "@/lib/api/mappers";
 import type { UserResDto } from "@/lib/api/mappers";
+import type { VolunteerInterviewResDto } from "@/lib/api/volunteer-interviews-api";
 
 export type AdminRescueRow = {
   report_id: number;
@@ -209,7 +206,7 @@ export function mapAdminUser(dto: UserResDto) {
   return {
     user_id: dto.userId,
     username: dto.username,
-    full_name: dto.full_name,
+    full_name: dto.fullName,
     email: dto.email,
     phone: dto.phone ?? "",
     role: "USER",
@@ -378,5 +375,21 @@ export function mapVolunteerScheduleRow(
     shift_name: ctx.shiftName,
     status: "APPROVED",
     note: "",
+  };
+}
+
+export function mapVolunteerInterview(dto: VolunteerInterviewResDto) {
+  return {
+    interview_id: dto.interviewId,
+    application_id: dto.applicationId,
+    interviewer_id: dto.interviewerId,
+    interviewer_name: dto.interviewerName ?? "",
+    interview_datetime: formatApiDateTime(dto.interviewDatetime),
+    meeting_type: dto.meetingType,
+    meeting_link: dto.meetingLink ?? "",
+    location_text: dto.locationText ?? "",
+    status: dto.status,
+    result: dto.result,
+    evaluation_note: dto.evaluationNote ?? "",
   };
 }

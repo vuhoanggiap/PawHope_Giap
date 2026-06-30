@@ -2,12 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import {
-  getAllProducts,
-  getProductById,
-  loadAllProducts,
-  saveProductToStore,
-} from "@/lib/admin-store";
+import { getAllProducts, getProductById, loadAllProducts, saveProductToStore } from "@/lib/admin-store";
 import { USE_MOCK } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatVnd";
 import type { PublicProduct } from "@/data/public-mock";
