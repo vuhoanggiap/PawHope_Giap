@@ -11,6 +11,7 @@ import {
   type PublicAdoption,
 } from "@/data/public-mock";
 import { loadAdoptionById } from "@/lib/public-store";
+import { getWsUrl } from "@/lib/ws-url";
 import { ArrowLeft, CalendarClock, CalendarDays, X, CheckCircle, Clock } from "lucide-react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -87,7 +88,7 @@ export function AccountAdoptionDetailPage() {
   useEffect(() => {
     if (!id) return;
 
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS(getWsUrl());
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,

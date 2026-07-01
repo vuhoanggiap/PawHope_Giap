@@ -3,7 +3,6 @@ import { mapRescueReportRes, type RescueReportResDto } from "@/lib/api/mappers";
 import type { PublicRescueReport } from "@/data/public-mock";
 
 export type CreateRescueReportBody = {
-  userId?: number;
   reporterName: string;
   reporterPhone: string;
   locationText: string;
@@ -24,7 +23,6 @@ export async function fetchRescueByTrackingCode(code: string): Promise<PublicRes
 
 export async function createRescueReport(body: CreateRescueReportBody): Promise<PublicRescueReport> {
   const form = new FormData();
-  if (body.userId != null) form.append("userId", String(body.userId));
   form.append("reporterName", body.reporterName.trim());
   form.append("reporterPhone", body.reporterPhone.trim());
   form.append("locationText", body.locationText.trim());
@@ -58,8 +56,10 @@ export async function deleteRescueReport(reportId: number) {
   await apiFetch<string>(`/rescue_reports/${reportId}`, { method: "DELETE" });
 }
 
-export async function acceptRescueReport(reportId: number, _userId?: number) {
-  return apiFetch<RescueReportResDto>(`/rescue_reports/${reportId}/accept`, {
+export async function acceptRescueReport(reportId: number, assigneeUserId?: number) {
+  const query =
+    assigneeUserId != null ? `?assigneeUserId=${encodeURIComponent(String(assigneeUserId))}` : "";
+  return apiFetch<RescueReportResDto>(`/rescue_reports/${reportId}/accept${query}`, {
     method: "PATCH",
   });
 }

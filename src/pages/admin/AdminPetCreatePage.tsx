@@ -5,7 +5,8 @@ import { AdminPanel, AdminFieldGrid } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { apiFetch } from "@/lib/api-client";
-import { loadKennels, loadRescueReports } from "@/lib/admin/admin-data";
+import { loadKennels, loadRescueReports, loadAdminPets, invalidateAdminPetsCache } from "@/lib/admin/admin-data";
+import type { PetResDto } from "@/lib/api/mappers";
 
 export function AdminPetCreatePage() {
   const navigate = useNavigate();
@@ -17,13 +18,21 @@ export function AdminPetCreatePage() {
   const [rescues, setRescues] = useState<any[]>([]);
 
   useEffect(() => {
-    void Promise.all([loadKennels(), loadRescueReports()])
-      .then(([kennelList, rescueList]) => {
+    void Promise.all([loadKennels(), loadRescueReports(), loadAdminPets()])
+      .then(([kennelList, rescueList, petList]) => {
         setKennels(kennelList);
         setRescues(rescueList);
+
+        const reportId = prefill.fromReportId != null ? Number(prefill.fromReportId) : null;
+        if (reportId) {
+          const existing = petList.find((p) => p.from_report_id === reportId);
+          if (existing) {
+            navigate(`/admin/pets/${existing.pet_id}`, { replace: true });
+          }
+        }
       })
       .catch((err) => console.error("Error loading auxiliary data:", err));
-  }, []);
+  }, [navigate, prefill.fromReportId]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,7 +48,7 @@ export function AdminPetCreatePage() {
     kennelId: "",
     imageUrl: prefill.imageUrl || "",
     description: prefill.description || "",
-    fromReportId: prefill.fromReportId || "",
+    fromReportId: prefill.fromReportId != null ? String(prefill.fromReportId) : "",
   });
 
   const handleChange = (
@@ -63,13 +72,13 @@ export function AdminPetCreatePage() {
     };
 
     try {
-      await apiFetch("/pets", {
+      const created = await apiFetch<PetResDto>("/pets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      alert("Pet profile created successfully!");
-      navigate("/admin/pets"); 
+      invalidateAdminPetsCache();
+      navigate(`/admin/pets/${created.petId}`);
 
     } catch (err: any) {
       console.error("Caught error:", err);
@@ -185,6 +194,13 @@ export function AdminPetCreatePage() {
              <div className="space-y-1">
               <p className="text-xs uppercase tracking-wide text-slate-500">Image URL</p>
               <input type="text" name="imageUrl" value={formData.imageUrl} onChange={handleChange} className={adminInputClass()} placeholder="https://..." />
+              {formData.imageUrl ? (
+                <img
+                  src={formData.imageUrl}
+                  alt="Pet preview"
+                  className="mt-2 max-h-40 rounded-xl border border-white/10 object-cover"
+                />
+              ) : null}
             </div>
 
           </AdminFieldGrid>

@@ -74,10 +74,9 @@ export function getRescueByCode(code: string): PublicRescueReport | undefined {
 export async function loadRescueByCode(code: string): Promise<PublicRescueReport | undefined> {
   if (USE_MOCK) return getRescueByCode(code);
   try {
-    const report = await fetchRescueByTrackingCode(code);
-    return report;
+    return await fetchRescueByTrackingCode(code.trim());
   } catch {
-    return getRescueByCode(code);
+    return undefined;
   }
 }
 
@@ -116,7 +115,6 @@ export async function saveRescueReport(
     return saveRescueReportMock({ ...report, image_url: url });
   }
   return createRescueReport({
-    userId: report.user_id,
     reporterName: report.reporter_name,
     reporterPhone: report.reporter_phone,
     locationText: report.location_text,
@@ -161,7 +159,7 @@ export async function loadUserRescueReports(_userId: number): Promise<PublicResc
   try {
     return await fetchMyRescueReports();
   } catch {
-    return getUserRescueReports(_userId);
+    return [];
   }
 }
 

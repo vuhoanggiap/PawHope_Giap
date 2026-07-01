@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockKennels } from "@/data/admin-mock";
-import { loadKennels } from "@/lib/admin/admin-data";
+import { loadKennels, invalidateAdminPetsCache } from "@/lib/admin/admin-data";
 import { formatEnum } from "@/lib/adminFormat";
 import { ChevronRight, Trash2 } from "lucide-react"; 
 import { useEffect, useState } from "react";
@@ -10,7 +10,7 @@ import { useAllPets } from "@/hooks/usePets";
 import { apiFetch } from "@/lib/api-client"; 
 
 export function AdminPetsPage() {
-  const { pets, loading, error } = useAllPets();
+  const { pets, loading, error, refetch } = useAllPets();
   const [kennels, setKennels] = useState(mockKennels);
 
   useEffect(() => {
@@ -26,8 +26,8 @@ export function AdminPetsPage() {
 
     try {
       await apiFetch(`/pets/${petId}`, { method: "DELETE" });
-      alert("Pet deleted successfully!");
-      window.location.reload(); 
+      invalidateAdminPetsCache();
+      refetch();
     } catch (err: any) {
       alert(err.message || "Error occurred while deleting the pet.");
     }
@@ -59,12 +59,13 @@ export function AdminPetsPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {pets.map((pet: any) => {
-          const kennel = kennels.find((k) => k.kennel_id === pet.kennelId);
+          const kennel = kennels.find((k) => k.kennel_id === (pet.kennelId ?? pet.kennel_id));
+          const petId = pet.petId ?? pet.id;
           const canDelete = !pet.fromReportId && pet.status === "NOT_READY_FOR_ADOPTION";
           return (
             <Link
-              key={pet.id || pet.petId}
-              to={`/admin/pets/${pet.id || pet.petId}`}
+              key={pet.petId ?? pet.id}
+              to={`/admin/pets/${pet.petId ?? pet.id}`}
               className="group admin-card-hover overflow-hidden relative"
             >
               <img src={pet.imageUrl} alt={pet.name} className="h-40 w-full object-cover" />
@@ -81,7 +82,7 @@ export function AdminPetsPage() {
                   <div className="flex items-center gap-2">
                     {canDelete && (
                       <button
-                        onClick={(e) => handleDelete(e, pet.id || pet.petId)}
+                        onClick={(e) => handleDelete(e, petId)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/20 rounded transition-colors"
                         title="Delete manually created profile"
                       >

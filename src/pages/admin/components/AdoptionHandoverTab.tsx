@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { AdminPanel, AdminFieldGrid, AdminField } from "@/components/admin/AdminDetailUi";
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, ApiError, API_BASE } from "@/lib/api-client";
 import { formatEnum } from "@/lib/adminFormat";
 import { Box, X, CheckCircle, Upload, ImageIcon, MapPin, CalendarCheck, Loader2 } from "lucide-react"; 
 
@@ -173,7 +173,7 @@ export function AdoptionHandoverTab({
 
       const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
 
-      const response = await fetch(`http://localhost:8080/api/v1/adoption_handovers/${completingHandoverId}/complete`, {
+      const response = await fetch(`${API_BASE}/adoption_handovers/${completingHandoverId}/complete`, {
         method: "PATCH",
         headers: {
           "Authorization": authHeader 

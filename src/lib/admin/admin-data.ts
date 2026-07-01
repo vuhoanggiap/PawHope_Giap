@@ -282,6 +282,22 @@ export async function loadAdminPets() {
   return cache.pets;
 }
 
+export async function loadAdminPetById(petId: number) {
+  if (USE_MOCK) {
+    return mockAdminPets.find((p) => p.pet_id === petId) ?? null;
+  }
+  try {
+    const dto = await apiFetch<PetResDto>(`/pets/${petId}`);
+    return mapAdminPet(dto);
+  } catch {
+    return null;
+  }
+}
+
+export function invalidateAdminPetsCache() {
+  cache.pets = null;
+}
+
 export async function loadKennels() {
   if (USE_MOCK) return mockKennels;
   if (cache.kennels) return cache.kennels;

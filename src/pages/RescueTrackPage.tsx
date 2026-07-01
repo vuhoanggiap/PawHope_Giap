@@ -63,17 +63,20 @@ export function RescueTrackPage() {
   }, [searched, fetchReport]);
 
   useRescueRealtime(
-    searched.trim() ? `/topic/rescue/${searched.trim()}` : null,
-    useCallback(() => fetchReport(searched, false), [searched, fetchReport]),
-    Boolean(searched.trim())
+    trackedCode ? `/topic/rescue/${trackedCode}` : null,
+    useCallback(() => fetchReport(trackedCode, false), [trackedCode, fetchReport]),
+    Boolean(trackedCode)
   );
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
-    const q = query.trim();
+    const q = query.trim().toUpperCase();
+    setQuery(q);
     setSearched(q);
     if (q) navigate(`/rescue/track/${encodeURIComponent(q)}`, { replace: true });
   };
+
+  const trackedCode = searched.trim().toUpperCase();
 
   const baseIndex = report ? rescueStatusIndex(report.status) : 0;
   const activeIndex = report?.status === "RESCUED" ? rescueSteps.length : baseIndex;
@@ -108,7 +111,7 @@ export function RescueTrackPage() {
           </form>
 
           <p className="text-sm soft-subtext text-center">
-            Try demo codes:{" "}
+            Sample demo codes (seed data):{" "}
             {RESCUE_DEMO_CODES.map((code, index) => (
               <span key={code}>
                 {index > 0 ? " · " : null}
@@ -139,7 +142,7 @@ export function RescueTrackPage() {
               <div>
                 <p className="font-medium text-amber-900">Code not found</p>
                 <p className="text-sm text-amber-800 mt-1">
-                  Double-check the code from your confirmation email or{" "}
+                  Double-check the code shown after you submitted a report, or{" "}
                   <Link to="/rescue" className="underline font-medium">
                     submit a new report
                   </Link>

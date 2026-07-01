@@ -6,6 +6,7 @@ import { LayoutDashboard, LifeBuoy, Dog, Warehouse, HeartHandshake, Wallet, Shop
 import { clearAdminSession, getStoredAdmin, type StaffRole } from "@/lib/admin-auth";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { getWsUrl } from "@/lib/ws-url";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
@@ -73,7 +74,7 @@ export const AdminSidebar = memo(function AdminSidebar({ mobileOpen, onNavigate 
 
     if (stompClientRef.current) return;
 
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS(getWsUrl());
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,

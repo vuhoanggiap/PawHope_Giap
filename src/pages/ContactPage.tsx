@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { submitContactMessage } from "@/lib/api/contact-api";
+import { ApiError } from "@/lib/api-client";
 import { PageHero } from "@/components/layout/PageHero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ export const ContactPage = () => {
   const { user } = usePublicAuth(); 
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const subjectOptions = [
     { value: "ADOPTION", label: "Adoption Inquiry" },
     { value: "VOLUNTEER", label: "Volunteer Application" },
@@ -30,6 +32,7 @@ export const ContactPage = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setSubmitError("");
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -43,8 +46,7 @@ export const ContactPage = () => {
       await submitContactMessage(payload);
       setSubmitted(true);
     } catch (err) {
-      console.error(err);
-      alert("Failed to send message. Please try again later.");
+      setSubmitError(err instanceof ApiError ? err.message : "Failed to send message. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -122,6 +124,11 @@ export const ContactPage = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {submitError ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {submitError}
+                    </p>
+                  ) : null}
                   <div>
                     <label className="text-sm font-medium text-[#5a6b60]">Name</label>
                     {user ? (

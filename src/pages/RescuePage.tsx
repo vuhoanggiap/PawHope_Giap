@@ -16,6 +16,8 @@ const steps = [
   "The animal is stabilized and brought to the sanctuary if needed.",
 ];
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 export const RescuePage = () => {
   const org = useOrganization();
   const { user } = usePublicAuth();
@@ -26,6 +28,11 @@ export const RescuePage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const handleImageChange = (file: File | null) => {
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      setSubmitError("Photo must be 5 MB or smaller.");
+      return;
+    }
+    setSubmitError("");
     setImageFile(file);
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(file ? URL.createObjectURL(file) : null);
@@ -142,6 +149,9 @@ export const RescuePage = () => {
                     <p className="font-medium text-[#3d6b5c] text-lg">Report received</p>
                     <p className="text-sm soft-subtext">Save this tracking code:</p>
                     <p className="text-2xl font-bold text-[#f6931d] tracking-wide">{trackingCode}</p>
+                    <p className="text-xs soft-subtext max-w-sm mx-auto">
+                      This code is shown here only — no confirmation email is sent. Please save it now.
+                    </p>
                     <Button asChild className="rounded-full bg-[#2c5f51] hover:bg-[#3d6b5c] mt-4">
                       <Link to={`/rescue/track/${trackingCode}`}>Track status →</Link>
                     </Button>
@@ -253,7 +263,7 @@ export const RescuePage = () => {
                           <span className="text-sm font-medium text-[#3d6b5c]">
                             {imageFile ? imageFile.name : "Tap to upload a photo"}
                           </span>
-                          <span className="mt-1 text-xs text-[#a8b8ae]">JPG, PNG or WEBP — required</span>
+                          <span className="mt-1 text-xs text-[#a8b8ae]">JPG, PNG or WEBP — required, max 5 MB</span>
                           <input
                             type="file"
                             accept="image/*"

@@ -4,8 +4,8 @@ import { AdminField, AdminFieldGrid, AdminPanel, AdminTabs } from "@/components/
 import { adminInputClass } from "@/components/admin/AdminControls";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { mockAdminPets, mockKennels, mockPetMedicalRecords, mockPetStatusLogs, mockRescueReports } from "@/data/admin-mock";
-import { loadAdminPets, loadKennels, loadPetMedicalRecords, loadPetStatusLogs, loadRescueReports,
+import { mockKennels } from "@/data/admin-mock";
+import { loadAdminPetById, loadKennels, loadPetMedicalRecords, loadPetStatusLogs, loadRescueReports,
   type AdminPetRow,
   type AdminRescueRow,
 } from "@/lib/admin/admin-data";
@@ -18,17 +18,11 @@ export function AdminPetDetailPage() {
   const { id } = useParams();
   const petId = Number(id);
   const staff = getStaffUser(); 
-  const [pet, setPet] = useState<AdminPetRow | any>(() =>
-    mockAdminPets.find((p) => p.pet_id === petId) as AdminPetRow | undefined
-  );
+  const [pet, setPet] = useState<AdminPetRow | null>(null);
   const [kennels, setKennels] = useState(mockKennels);
-  const [medical, setMedical] = useState(() =>
-    mockPetMedicalRecords.filter((m) => m.pet_id === petId)
-  );
-  const [logs, setLogs] = useState(() => mockPetStatusLogs.filter((l) => l.pet_id === petId));
-  const [rescues, setRescues] = useState<AdminRescueRow[]>(
-    mockRescueReports as AdminRescueRow[]
-  );
+  const [medical, setMedical] = useState<Awaited<ReturnType<typeof loadPetMedicalRecords>>>([]);
+  const [logs, setLogs] = useState<Awaited<ReturnType<typeof loadPetStatusLogs>>>([]);
+  const [rescues, setRescues] = useState<AdminRescueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [tab, setTab] = useState("profile");
@@ -47,17 +41,21 @@ export function AdminPetDetailPage() {
   });
 
   useEffect(() => {
+    if (!petId || Number.isNaN(petId)) {
+      setLoading(false);
+      setPet(null);
+      return;
+    }
     setLoading(true);
     void Promise.all([
-      loadAdminPets(),
+      loadAdminPetById(petId),
       loadKennels(),
       loadRescueReports(),
       loadPetMedicalRecords(petId),
       loadPetStatusLogs(petId),
-    ]).then(([pets, kennelList, rescueList, medicalList, logList]) => {
-      const currentPet = pets.find((p: any) => (p.pet_id || p.petId) === petId);
+    ]).then(([currentPet, kennelList, rescueList, medicalList, logList]) => {
       setPet(currentPet);
-      if (currentPet) setNewLog(prev => ({ ...prev, newStatus: currentPet.status }));
+      if (currentPet) setNewLog((prev) => ({ ...prev, newStatus: currentPet.status }));
       setKennels(kennelList);
       setRescues(rescueList);
       setMedical(medicalList);

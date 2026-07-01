@@ -5,15 +5,24 @@ import { AdminFilterPill, AdminSearchInput, adminInputClass } from "@/components
 import { AdminField, AdminFieldGrid, AdminPanel } from "@/components/admin/AdminDetailUi";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { mockRescueReports } from "@/data/admin-mock";
 import { ApiError } from "@/lib/api-client";
 import { useRescueRealtime } from "@/hooks/useRescueRealtime";
-import { getStaffName, loadRescueAssignees, loadRescueReports, patchRescueReport, removeRescueReport, type AdminRescueRow } from "@/lib/admin/admin-data";
+import { getStaffName, loadAdminPets, loadRescueAssignees, loadRescueReports, patchRescueReport, removeRescueReport, type AdminPetRow, type AdminRescueRow } from "@/lib/admin/admin-data";
 import { staffIsAdmin, getStaffUser } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
 import { ExternalLink, Trash2, PawPrint } from "lucide-react"; 
 
 const STATUS_OPTIONS = ["PENDING", "IN_PROGRESS", "RESCUED", "FAILED"] as const;
+
+function rescueStatusOptions(row: AdminRescueRow): string[] {
+  const options: string[] = row.assigned_to == null ? ["PENDING"] : ["IN_PROGRESS"];
+  options.push("RESCUED", "FAILED");
+  if (!options.includes(row.status)) {
+    options.unshift(row.status);
+  }
+  return options;
+}
+
 type ScopeFilter = "ALL" | "MINE";
 
 export function AdminRescuePage() {
@@ -21,9 +30,10 @@ export function AdminRescuePage() {
   const isAdminUser = staffIsAdmin();
   const navigate = useNavigate(); 
   
-  const [reports, setReports] = useState<AdminRescueRow[]>(mockRescueReports as AdminRescueRow[]);
+  const [reports, setReports] = useState<AdminRescueRow[]>([]);
+  const [pets, setPets] = useState<AdminPetRow[]>([]);
   const [assignees, setAssignees] = useState<{ user_id: number; full_name: string; role: string }[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(mockRescueReports[0]?.report_id ?? null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>(isAdminUser ? "ALL" : "MINE");
   const [search, setSearch] = useState("");
@@ -31,8 +41,9 @@ export function AdminRescuePage() {
   const [saving, setSaving] = useState(false);
 
   const refreshReports = useCallback(() => {
-    void loadRescueReports().then((list) => {
+    void Promise.all([loadRescueReports(), loadAdminPets()]).then(([list, petList]) => {
       setReports(list);
+      setPets(petList);
       setSelectedId((prev) => {
         if (prev != null && list.some((r) => r.report_id === prev)) return prev;
         return list[0]?.report_id ?? null;
@@ -49,7 +60,11 @@ export function AdminRescuePage() {
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
-      if (scopeFilter === "MINE" && staff?.userId && r.assigned_to !== staff.userId) return false;
+      if (scopeFilter === "MINE" && staff?.userId) {
+        const isMine = r.assigned_to === staff.userId;
+        const isOpen = r.assigned_to == null && r.status === "PENDING";
+        if (!isMine && !isOpen) return false;
+      }
       if (filterStatus !== "ALL" && r.status !== filterStatus) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
@@ -62,6 +77,9 @@ export function AdminRescuePage() {
   }, [reports, filterStatus, search, scopeFilter, staff?.userId]);
 
   const selected = reports.find((r) => r.report_id === selectedId) ?? null;
+  const linkedPet = selected
+    ? pets.find((p) => p.from_report_id === selected.report_id) ?? null
+    : null;
   const canAssign = selected?.status === "PENDING" && selected.assigned_to == null;
 
   const runAction = async (fn: () => Promise<void>) => {
@@ -127,7 +145,7 @@ export function AdminRescuePage() {
             active={scopeFilter === s}
             onClick={() => setScopeFilter(s)}
           >
-            {s === "ALL" ? "All reports" : "Assigned to me"}
+            {s === "ALL" ? "All reports" : "My cases & open"}
           </AdminFilterPill>
         ))}
         {["ALL", ...STATUS_OPTIONS].map((s) => (
@@ -280,7 +298,7 @@ export function AdminRescuePage() {
                       onChange={(e) => handleStatus(e.target.value)}
                       className={adminInputClass()}
                     >
-                      {STATUS_OPTIONS.map((s) => (
+                      {rescueStatusOptions(selected).map((s) => (
                         <option key={s} value={s}>
                           {formatEnum(s)}
                         </option>
@@ -290,17 +308,35 @@ export function AdminRescuePage() {
                 </AdminFieldGrid>                
                 {selected.status === "RESCUED" ? (
                   <div className="mt-6 pt-4 border-t border-emerald-500/20 flex flex-col items-start gap-3">
-                    <p className="text-sm text-emerald-400 font-medium flex items-center gap-2">
-                      <ExternalLink size={16} />
-                      Rescue successful! Next step: Create pet profile.
-                    </p>
-                    <button
-                      onClick={handleCreatePet}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
-                    >
-                      <PawPrint size={16} />
-                      Create Pet Profile
-                    </button>
+                    {linkedPet ? (
+                      <>
+                        <p className="text-sm text-emerald-400 font-medium flex items-center gap-2">
+                          <PawPrint size={16} />
+                          Pet profile already created for this rescue case.
+                        </p>
+                        <Link
+                          to={`/admin/pets/${linkedPet.pet_id}`}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-sm font-semibold rounded-lg transition-colors border border-emerald-500/30"
+                        >
+                          View {linkedPet.name} ({linkedPet.pet_code}) →
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-emerald-400 font-medium flex items-center gap-2">
+                          <ExternalLink size={16} />
+                          Rescue successful! Next step: Create pet profile.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleCreatePet}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+                        >
+                          <PawPrint size={16} />
+                          Create Pet Profile
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : null}
               </AdminPanel>
