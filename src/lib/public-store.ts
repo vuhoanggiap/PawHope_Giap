@@ -14,7 +14,7 @@ import {
 } from "@/lib/api/adoptions-api";
 import {
   createRescueReport,
-  fetchAllRescueReports,
+  fetchMyRescueReports,
   fetchRescueById,
   fetchRescueByTrackingCode,
 } from "@/lib/api/rescue-reports-api";
@@ -108,9 +108,13 @@ function saveRescueReportMock(
 export async function saveRescueReport(
   report: Omit<PublicRescueReport, "tracking_code" | "created_at" | "updated_at" | "status"> & {
     user_id?: number;
+    image_file: File;
   }
 ): Promise<PublicRescueReport> {
-  if (USE_MOCK) return saveRescueReportMock(report);
+  if (USE_MOCK) {
+    const url = URL.createObjectURL(report.image_file);
+    return saveRescueReportMock({ ...report, image_url: url });
+  }
   return createRescueReport({
     userId: report.user_id,
     reporterName: report.reporter_name,
@@ -120,8 +124,8 @@ export async function saveRescueReport(
     injuryType: report.injury_type,
     temperament: report.temperament,
     behavior: report.behavior,
-    additionalNote: report.additional_note,
-    imageUrl: report.image_url,
+    additionalNote: report.additional_note ?? "",
+    image: report.image_file,
   });
 }
 
@@ -152,14 +156,12 @@ export function getUserRescueReports(userId: number): PublicRescueReport[] {
   return allRescues().filter((r) => r.user_id === userId);
 }
 
-export async function loadUserRescueReports(userId: number): Promise<PublicRescueReport[]> {
-  if (USE_MOCK) return getUserRescueReports(userId);
+export async function loadUserRescueReports(_userId: number): Promise<PublicRescueReport[]> {
+  if (USE_MOCK) return getUserRescueReports(_userId);
   try {
-    const all = await fetchAllRescueReports();
-    apiRescuesCache = all;
-    return all.filter((r) => r.user_id === userId);
+    return await fetchMyRescueReports();
   } catch {
-    return getUserRescueReports(userId);
+    return getUserRescueReports(_userId);
   }
 }
 

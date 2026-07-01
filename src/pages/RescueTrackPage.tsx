@@ -8,7 +8,8 @@ import { formatPublicEnum, rescueStatusIndex } from "@/data/public-mock";
 import { loadRescueByCode } from "@/lib/public-store";
 import type { PublicRescueReport } from "@/data/public-mock";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, RefreshCw, Search, Wifi } from "lucide-react";
+import { RESCUE_DEMO_CODES, useRescueRealtime } from "@/hooks/useRescueRealtime";
 
 const rescueSteps = [
   { id: "pending", label: "Report received", description: "Your case is logged and prioritized." },
@@ -57,9 +58,15 @@ export function RescueTrackPage() {
 
   useEffect(() => {
     if (!searched.trim()) return;
-    const id = window.setInterval(() => fetchReport(searched, false), 60_000);
+    const id = window.setInterval(() => fetchReport(searched, false), 120_000);
     return () => window.clearInterval(id);
   }, [searched, fetchReport]);
+
+  useRescueRealtime(
+    searched.trim() ? `/topic/rescue/${searched.trim()}` : null,
+    useCallback(() => fetchReport(searched, false), [searched, fetchReport]),
+    Boolean(searched.trim())
+  );
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -88,7 +95,7 @@ export function RescueTrackPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="e.g. RSC-2026-DEMO1"
+                placeholder="e.g. RP-2026-0001"
                 className="mt-1.5 rounded-2xl border-[#2c5f51]/10"
               />
             </div>
@@ -102,29 +109,22 @@ export function RescueTrackPage() {
 
           <p className="text-sm soft-subtext text-center">
             Try demo codes:{" "}
-            <button
-              type="button"
-              className="text-[#f6931d] font-medium hover:underline"
-              onClick={() => {
-                setQuery("RSC-2026-DEMO1");
-                setSearched("RSC-2026-DEMO1");
-                navigate("/rescue/track/RSC-2026-DEMO1", { replace: true });
-              }}
-            >
-              RSC-2026-DEMO1
-            </button>
-            {" · "}
-            <button
-              type="button"
-              className="text-[#f6931d] font-medium hover:underline"
-              onClick={() => {
-                setQuery("RSC-2026-DEMO2");
-                setSearched("RSC-2026-DEMO2");
-                navigate("/rescue/track/RSC-2026-DEMO2", { replace: true });
-              }}
-            >
-              RSC-2026-DEMO2
-            </button>
+            {RESCUE_DEMO_CODES.map((code, index) => (
+              <span key={code}>
+                {index > 0 ? " · " : null}
+                <button
+                  type="button"
+                  className="text-[#f6931d] font-medium hover:underline"
+                  onClick={() => {
+                    setQuery(code);
+                    setSearched(code);
+                    navigate(`/rescue/track/${encodeURIComponent(code)}`, { replace: true });
+                  }}
+                >
+                  {code}
+                </button>
+              </span>
+            ))}
           </p>
 
           {!searched ? (
@@ -156,7 +156,9 @@ export function RescueTrackPage() {
                   <p className="text-sm soft-subtext mt-1">
                     Submitted {report.created_at} · Updated {report.updated_at}
                   </p>
-                  <p className="text-xs soft-subtext mt-2">Status refreshes every minute.</p>
+                  <p className="text-xs soft-subtext mt-2 inline-flex items-center gap-1">
+                    <Wifi size={12} className="text-emerald-600" /> Live updates enabled
+                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button

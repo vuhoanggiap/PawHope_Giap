@@ -7,6 +7,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { mockRescueReports } from "@/data/admin-mock";
 import { ApiError } from "@/lib/api-client";
+import { useRescueRealtime } from "@/hooks/useRescueRealtime";
 import { getStaffName, loadRescueAssignees, loadRescueReports, patchRescueReport, removeRescueReport, type AdminRescueRow } from "@/lib/admin/admin-data";
 import { staffIsAdmin, getStaffUser } from "@/lib/admin/admin-role";
 import { formatEnum } from "@/lib/adminFormat";
@@ -43,6 +44,8 @@ export function AdminRescuePage() {
     refreshReports();
     void loadRescueAssignees().then(setAssignees);
   }, [refreshReports]);
+
+  useRescueRealtime("/topic/rescue/admin", refreshReports);
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {

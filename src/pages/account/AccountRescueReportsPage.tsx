@@ -1,17 +1,24 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicAuth } from "@/contexts/PublicAuthContext";
 import { formatPublicEnum, type PublicRescueReport } from "@/data/public-mock";
+import { useRescueRealtime } from "@/hooks/useRescueRealtime";
 import { loadUserRescueReports } from "@/lib/public-store";
 
 export function AccountRescueReportsPage() {
   const { user } = usePublicAuth();
   const [reports, setReports] = useState<PublicRescueReport[]>([]);
 
-  useEffect(() => {
+  const refreshReports = useCallback(() => {
     if (!user) return;
     void loadUserRescueReports(user.userId).then(setReports);
   }, [user]);
+
+  useEffect(() => {
+    refreshReports();
+  }, [refreshReports]);
+
+  useRescueRealtime("/topic/rescue/admin", refreshReports, Boolean(user));
 
   if (!user) return null;
 
