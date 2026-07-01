@@ -25,13 +25,26 @@ export function AdminDonationsPage() {
 
   const CAMPAIGNS_PER_PAGE = 10;
 
+  const [financialPage, setFinancialPage] = useState(1);
+
+  const FINANCIALS_PER_PAGE = 10;
+
   const sortedItemDonations = [...itemDonations].sort(
     (a, b) => b.item_donation_id - a.item_donation_id
+  );
+
+  const sortedDonations = [...donations].sort(
+    (a, b) => b.donation_id - a.donation_id
   );
 
   const pagedItemDonations = sortedItemDonations.slice(
     (itemPage - 1) * ITEMS_PER_PAGE,
     itemPage * ITEMS_PER_PAGE
+  );
+
+  const pagedDonations = sortedDonations.slice(
+    (financialPage - 1) * FINANCIALS_PER_PAGE,
+    financialPage * FINANCIALS_PER_PAGE
   );
 
   const selectedItem = itemDonations.find(
@@ -227,30 +240,57 @@ export function AdminDonationsPage() {
         className="mb-6"
       />
 
-      {tab === "financial" ? (
-        <AdminDataTable
-          rows={donations.map((d) => ({
-            id: d.donation_id,
-            donor: d.donor_name,
-            campaign: getCampaignTitle(d.campaign_id),
-            amount: d.amount.toLocaleString("vi-VN") + " ₫",
-            type: d.donation_type,
-            method: d.payment_method,
-            status: d.payment_status,
-            date: d.received_at,
-          }))}
-          columns={[
-            { key: "id", label: "ID" },
-            { key: "donor", label: "Donor" },
-            { key: "campaign", label: "Campaign" },
-            { key: "amount", label: "Amount" },
-            { key: "type", label: "Type" },
-            { key: "method", label: "Method" },
-            { key: "status", label: "Status" },
-            { key: "date", label: "Received at" },
-          ]}
-        />
-      ) : null}
+{tab === "financial" && (
+  <>
+    <AdminDataTable
+      rows={pagedDonations.map((d) => ({
+        id: d.donation_id,
+        donor: d.donor_name,
+        campaign: getCampaignTitle(d.campaign_id),
+        amount: d.amount.toLocaleString("vi-VN") + " ₫",
+        type: d.donation_type,
+        method: d.payment_method,
+        status: d.payment_status,
+        date: d.received_at,
+      }))}
+      columns={[
+        { key: "id", label: "ID" },
+        { key: "donor", label: "Donor" },
+        { key: "campaign", label: "Campaign" },
+        { key: "amount", label: "Amount" },
+        { key: "type", label: "Type" },
+        { key: "method", label: "Method" },
+        { key: "status", label: "Status" },
+        { key: "date", label: "Received at" },
+      ]}
+    />
+
+    <div className="flex justify-end gap-2 mt-4">
+      <button
+        disabled={financialPage === 1}
+        onClick={() => setFinancialPage((p) => p - 1)}
+        className="px-3 py-1 rounded bg-slate-700 disabled:opacity-50"
+      >
+        Prev
+      </button>
+
+      <span className="px-3 py-1">
+        {financialPage}
+      </span>
+
+      <button
+        disabled={
+          financialPage >=
+          Math.ceil(sortedDonations.length / FINANCIALS_PER_PAGE)
+        }
+        onClick={() => setFinancialPage((p) => p + 1)}
+        className="px-3 py-1 rounded bg-slate-700 disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  </>
+)}
 
       {tab === "items" && (
         <div className="grid xl:grid-cols-5 gap-6">

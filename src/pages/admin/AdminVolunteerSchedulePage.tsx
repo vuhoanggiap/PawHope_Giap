@@ -32,6 +32,8 @@ export function AdminVolunteerSchedulePage() {
     status: "NOT_OPEN",
   });
 
+  const [monthPage, setMonthPage] = useState(0);
+
   const loadData = () => {
     fetchShifts()
       .then((data: any) => {
@@ -110,6 +112,21 @@ export function AdminVolunteerSchedulePage() {
   }
 
   const weekDates = selectedWindow ? getWeekDates(selectedWindow.weekStartDate) : [];
+
+  const groupedWindows = windows.reduce((acc: Record<string, any[]>, window) => {
+    const month = window.weekStartDate.slice(0, 7); 
+    if (!acc[month]) {
+      acc[month] = [];
+    }
+    acc[month].push(window);
+    return acc;
+  }, {});
+
+  const months = Object.keys(groupedWindows).sort().reverse();
+
+  const currentMonth = months[monthPage];
+
+  const currentWindows = groupedWindows[currentMonth] || [];
 
   async function handleSaveShift() {
     try {
@@ -425,8 +442,32 @@ export function AdminVolunteerSchedulePage() {
             </div>
           </AdminPanel>
 
+          <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+            <button
+              type="button"
+              disabled={monthPage === 0}
+              onClick={() => setMonthPage((prev) => prev - 1)}
+              className="rounded-lg bg-slate-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            <span className="font-semibold text-slate-300">
+              {currentMonth || "No Data"}
+            </span>
+
+            <button
+              type="button"
+              disabled={monthPage === months.length - 1}
+              onClick={() => setMonthPage((prev) => prev + 1)}
+              className="rounded-lg bg-slate-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
-            {windows.map((w) => (
+            {currentWindows.map((w) => (
               <AdminPanel key={w.windowId} title={w.title || `Window #${w.windowId}`}>
                 <AdminFieldGrid cols={2}>
                   <AdminField label="Week Duration" value={`${w.weekStartDate} → ${w.weekEndDate}`} />
