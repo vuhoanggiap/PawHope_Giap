@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { saveRescueReport } from "@/lib/public-store";
-import { AlertTriangle, CheckCircle2, MapPin, Phone, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ImagePlus, MapPin, Phone, Sparkles } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 
 const steps = [
@@ -20,23 +20,53 @@ export const RescuePage = () => {
   const org = useOrganization();
   const { user } = usePublicAuth();
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleImageChange = (file: File | null) => {
+    setImageFile(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(file ? URL.createObjectURL(file) : null);
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError("");
+
     const fd = new FormData(e.currentTarget);
-    const report = await saveRescueReport({
-      user_id: user?.userId,
-      reporter_name: String(fd.get("name") || ""),
-      reporter_phone: String(fd.get("phone") || ""),
-      location_text: String(fd.get("location") || ""),
-      urgency_level: String(fd.get("urgency") || "MEDIUM"),
-      injury_type: String(fd.get("injury") || "NONE"),
-      temperament: String(fd.get("temperament") || "SCARED"),
-      behavior: String(fd.get("behavior") || "ACTIVE"),
-      additional_note: String(fd.get("note") || "") || undefined,
-      image_url: String(fd.get("imageUrl") || "").trim() || undefined,
-    });
-    setTrackingCode(report.tracking_code);
+    const note = String(fd.get("note") || "").trim();
+
+    if (!imageFile) {
+      setSubmitError("Please upload a photo of the animal or scene.");
+      return;
+    }
+    if (!note) {
+      setSubmitError("Please describe the situation in additional details.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const report = await saveRescueReport({
+        user_id: user?.userId,
+        reporter_name: String(fd.get("name") || ""),
+        reporter_phone: String(fd.get("phone") || ""),
+        location_text: String(fd.get("location") || ""),
+        urgency_level: String(fd.get("urgency") || "MEDIUM"),
+        injury_type: String(fd.get("injury") || "NONE"),
+        temperament: String(fd.get("temperament") || "SCARED"),
+        behavior: String(fd.get("behavior") || "ACTIVE"),
+        additional_note: note,
+        image_file: imageFile,
+      });
+      setTrackingCode(report.tracking_code);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Could not submit report. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fieldClass =
@@ -126,6 +156,11 @@ export const RescuePage = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-5">
+                    {submitError ? (
+                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {submitError}
+                      </p>
+                    ) : null}
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-[#5a6b60]">Your name</label>
@@ -204,21 +239,45 @@ export const RescuePage = () => {
 
                     <div>
                       <label className="text-sm font-medium text-[#5a6b60]">
-                        Photo URL <span className="font-normal text-[#a8b8ae]">(optional)</span>
+                        Photo <span className="text-red-500">*</span>
                       </label>
-                      <Input
-                        name="imageUrl"
-                        type="url"
-                        placeholder="https://… link to a photo of the animal or scene"
-                        className={fieldClass}
-                      />
+                      <div className="mt-1.5 space-y-3">
+                        <label
+                          className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 transition-colors ${
+                            imageFile
+                              ? "border-[#3d6b5c] bg-[#e6f2ec]/40"
+                              : "border-[#2c5f51]/15 bg-white/90 hover:border-[#f6931d]/40"
+                          }`}
+                        >
+                          <ImagePlus className="mb-2 text-[#3d6b5c]" size={28} />
+                          <span className="text-sm font-medium text-[#3d6b5c]">
+                            {imageFile ? imageFile.name : "Tap to upload a photo"}
+                          </span>
+                          <span className="mt-1 text-xs text-[#a8b8ae]">JPG, PNG or WEBP — required</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            required
+                            className="sr-only"
+                            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                          />
+                        </label>
+                        {imagePreview ? (
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="max-h-48 w-full rounded-2xl object-cover border border-[#2c5f51]/10"
+                          />
+                        ) : null}
+                      </div>
                     </div>
 
                     <Button
                       type="submit"
-                      className="w-full rounded-full bg-[#f6931d]/95 hover:bg-[#f6931d] font-medium h-12 shadow-[0_6px_20px_rgba(246,147,29,0.3)]"
+                      disabled={submitting}
+                      className="w-full rounded-full bg-[#f6931d]/95 hover:bg-[#f6931d] font-medium h-12 shadow-[0_6px_20px_rgba(246,147,29,0.3)] disabled:opacity-60"
                     >
-                      Submit rescue report
+                      {submitting ? "Submitting…" : "Submit rescue report"}
                     </Button>
                   </form>
                 )}

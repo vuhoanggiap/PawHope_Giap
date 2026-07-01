@@ -23,17 +23,35 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return parseApiResponse<T>(`${API_BASE}${path}`, init, true);
+}
+
+export async function apiFetchFormData<T>(
+  path: string,
+  formData: FormData,
+  method = "POST"
+): Promise<T> {
+  return parseApiResponse<T>(`${API_BASE}${path}`, { method, body: formData }, false);
+}
+
+async function parseApiResponse<T>(
+  url: string,
+  init: RequestInit | undefined,
+  jsonBody: boolean
+): Promise<T> {
   const token = getAuthToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(init?.headers as Record<string, string> | undefined),
-  };
-  
+  const headers: Record<string, string> = jsonBody
+    ? {
+        "Content-Type": "application/json",
+        ...(init?.headers as Record<string, string> | undefined),
+      }
+    : { ...(init?.headers as Record<string, string> | undefined) };
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(url, {
     ...init,
     headers,
   });
@@ -48,12 +66,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (rawText) {
     try {
       body = JSON.parse(rawText);
-    } catch (e) {
+    } catch {
       if (res.ok) return rawText as any;
       throw new ApiError("Data formatting error from the server", undefined, res.status);
     }
   } else if (res.ok) {
-    return true as any; 
+    return true as any;
   }
 
   if (!res.ok) {

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, apiFetchFormData } from "@/lib/api-client";
 import { mapRescueReportRes, type RescueReportResDto } from "@/lib/api/mappers";
 import type { PublicRescueReport } from "@/data/public-mock";
 
@@ -11,8 +11,8 @@ export type CreateRescueReportBody = {
   injuryType: string;
   temperament: string;
   behavior: string;
-  additionalNote?: string;
-  imageUrl?: string;
+  additionalNote: string;
+  image: File;
 };
 
 export async function fetchRescueByTrackingCode(code: string): Promise<PublicRescueReport> {
@@ -23,11 +23,25 @@ export async function fetchRescueByTrackingCode(code: string): Promise<PublicRes
 }
 
 export async function createRescueReport(body: CreateRescueReportBody): Promise<PublicRescueReport> {
-  const dto = await apiFetch<RescueReportResDto>("/rescue_reports", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const form = new FormData();
+  if (body.userId != null) form.append("userId", String(body.userId));
+  form.append("reporterName", body.reporterName.trim());
+  form.append("reporterPhone", body.reporterPhone.trim());
+  form.append("locationText", body.locationText.trim());
+  form.append("urgencyLevel", body.urgencyLevel);
+  form.append("injuryType", body.injuryType);
+  form.append("temperament", body.temperament);
+  form.append("behavior", body.behavior);
+  form.append("additionalNote", body.additionalNote.trim());
+  form.append("image", body.image);
+
+  const dto = await apiFetchFormData<RescueReportResDto>("/rescue_reports", form);
   return mapRescueReportRes(dto);
+}
+
+export async function fetchMyRescueReports(): Promise<PublicRescueReport[]> {
+  const list = await apiFetch<RescueReportResDto[]>("/rescue_reports/my");
+  return list.map(mapRescueReportRes);
 }
 
 export async function fetchAllRescueReports(): Promise<PublicRescueReport[]> {
@@ -44,8 +58,8 @@ export async function deleteRescueReport(reportId: number) {
   await apiFetch<string>(`/rescue_reports/${reportId}`, { method: "DELETE" });
 }
 
-export async function acceptRescueReport(reportId: number, userId: number) {
-  return apiFetch<RescueReportResDto>(`/rescue_reports/${reportId}/accept?userId=${userId}`, {
+export async function acceptRescueReport(reportId: number, _userId?: number) {
+  return apiFetch<RescueReportResDto>(`/rescue_reports/${reportId}/accept`, {
     method: "PATCH",
   });
 }
